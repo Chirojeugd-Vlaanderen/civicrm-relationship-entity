@@ -126,7 +126,7 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
     }
 
     if (!empty($ids)) {
-      $form->_componentClause = ' civicrm_relationship.id IN ( ' . implode(',', $ids) . ' ) ';
+      $form->_componentClause = ' relationship.id IN ( ' . implode(',', $ids) . ' ) ';
 
       $form->assign('totalSelectedRelationships', count($ids));
     }

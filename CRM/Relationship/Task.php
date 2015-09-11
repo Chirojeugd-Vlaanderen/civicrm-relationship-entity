@@ -70,7 +70,7 @@ class CRM_Relationship_Task {
         1 => array(
           'title' => ts('Export Relationships'),
           'class' => array(
-            'CRM_Export_Form_Select',
+            'CRM_Export_Form_Select_Relationship',
             'CRM_Export_Form_Map',
           ),
           'result' => FALSE,

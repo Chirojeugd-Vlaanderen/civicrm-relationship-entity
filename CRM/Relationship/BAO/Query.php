@@ -34,6 +34,21 @@
 class CRM_Relationship_BAO_Query {
 
   /**
+   * The various search modes.
+   *
+   * @var int
+   */
+  const
+      MODE_RELATIONSHIPS = 1;
+
+  /**
+   * The default set of return properties.
+   *
+   * @var array
+   */
+  static $_defaultReturnProperties = NULL;
+
+  /**
    * Static field for all the export/import relationship fields.
    *
    * @var array
@@ -199,13 +214,10 @@ class CRM_Relationship_BAO_Query {
    * @param array $params
    * @param array $returnProperties
    * @param array $fields
-   * @param bool $includeContactIds
+   * @param bool $includeRelationshipIds
    * @param bool $strict
-   * @param bool|int $mode - mode the search is operating on
    *
    * @param bool $skipPermission
-   * @param bool $searchDescendentGroups
-   * @param bool $smartGroupCache
    * @param string $operator
    *
    * @return \CRM_Relationship_BAO_Query
