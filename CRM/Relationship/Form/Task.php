@@ -61,11 +61,11 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
   protected $_componentIds;
 
   /**
-   * The array that holds all the contribution ids.
+   * The array that holds all the relationship ids.
    *
    * @var array
    */
-  protected $_contributionIds;
+  protected $_relationshipIds;
 
   /**
    * The array that holds all the contact ids.
@@ -73,20 +73,6 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
    * @var array
    */
   public $_contactIds;
-
-  /**
-   * The array that holds all the mapping contribution and contact ids.
-   *
-   * @var array
-   */
-  protected $_contributionContactIds = array();
-
-  /**
-   * The flag to tell if there are soft credits included.
-   *
-   * @var boolean
-   */
-  public $_includesSoftCredits = FALSE;
 
   /**
    * Build all the data structures needed to build the form.
@@ -104,13 +90,13 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
    * @param bool $useTable
    */
   public static function preProcessCommon(&$form, $useTable = FALSE) {
-    $form->_contributionIds = array();
+    $form->_relationshipIds = array();
 
     $values = $form->controller->exportValues($form->get('searchFormName'));
 
     $form->_task = $values['task'];
-    $contributeTasks = CRM_Contribute_Task::tasks();
-    $form->assign('taskName', $contributeTasks[$form->_task]);
+    $relationshipTasks = CRM_Relationship_Task::tasks();
+    $form->assign('taskName', $relationshipTasks[$form->_task]);
 
     $ids = array();
     if ($values['radio_ts'] == 'ts_sel') {
@@ -127,39 +113,25 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
         $sortOrder = $form->get(CRM_Utils_Sort::SORT_ORDER);
       }
 
-      $form->_includesSoftCredits = CRM_Contribute_BAO_Query::isSoftCreditOptionEnabled($queryParams);
       $query = new CRM_Relationship_BAO_Query($queryParams);
-      if ($form->_includesSoftCredits) {
-        $contactIds = $contributionContactIds = array();
-        $query->_rowCountClause = " count(civicrm_contribution.id)";
-        $query->_groupByComponentClause = " GROUP BY contribution_search_scredit_combined.id, contribution_search_scredit_combined.contact_id, contribution_search_scredit_combined.scredit_id ";
-      }
-      else {
-        $query->_distinctComponentClause = ' civicrm_contribution.id';
-        $query->_groupByComponentClause = ' GROUP BY civicrm_contribution.id ';
-      }
+
+      $query->_distinctComponentClause = ' civicrm_relationship.id';
+      $query->_groupByComponentClause = ' GROUP BY civicrm_relationship.id ';
+
       $result = $query->searchQuery(0, 0, $sortOrder);
       while ($result->fetch()) {
-        $ids[] = $result->contribution_id;
-        if ($form->_includesSoftCredits) {
-          $contactIds[$result->contact_id] = $result->contact_id;
-          $contributionContactIds["{$result->contact_id}-{$result->contribution_id}"] = $result->contribution_id;
-        }
+        $ids[] = $result->relationship_id;
       }
       $form->assign('totalSelectedContributions', $form->get('rowCount'));
     }
 
     if (!empty($ids)) {
-      $form->_componentClause = ' civicrm_contribution.id IN ( ' . implode(',', $ids) . ' ) ';
+      $form->_componentClause = ' civicrm_relationship.id IN ( ' . implode(',', $ids) . ' ) ';
 
-      $form->assign('totalSelectedContributions', count($ids));
-    }
-    if (!empty($form->_includesSoftCredits) && !empty($contactIds)) {
-      $form->_contactIds = $contactIds;
-      $form->_contributionContactIds = $contributionContactIds;
+      $form->assign('totalSelectedRelationships', count($ids));
     }
 
-    $form->_contributionIds = $form->_componentIds = $ids;
+    $form->_relationshipIds = $form->_componentIds = $ids;
 
     //set the context for redirection for any task actions
     $session = CRM_Core_Session::singleton();
@@ -172,7 +144,7 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
 
     $searchFormName = strtolower($form->get('searchFormName'));
     if ($searchFormName == 'search') {
-      $session->replaceUserContext(CRM_Utils_System::url('civicrm/contribute/search', $urlParams));
+      $session->replaceUserContext(CRM_Utils_System::url('civicrm/rel/search', $urlParams));
     }
     else {
       $session->replaceUserContext(CRM_Utils_System::url("civicrm/contact/search/$searchFormName",
@@ -182,15 +154,15 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
   }
 
   /**
-   * Given the contribution id, compute the contact id
+   * Given the relationship id, compute the contact id
    * since its used for things like send email
    */
   public function setContactIDs() {
-    if (!$this->_includesSoftCredits) {
-      $this->_contactIds = &CRM_Core_DAO::getContactIDsFromComponent(
-        $this->_contributionIds,
-        'civicrm_contribution'
-      );
+    $this->_contactIds = array();
+    foreach ($this->_relationshipIds as $key => $relId) {
+      $rel = CRM_Contact_BAO_Relationship::getRelationshipByID($relId);
+      $this->_contactIds[] = $rel->contact_id_a;
+      $this->_contactIds[] = $rel->contact_id_b;
     }
   }
 
