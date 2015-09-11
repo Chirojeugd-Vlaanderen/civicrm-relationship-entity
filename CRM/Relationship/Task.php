@@ -1,28 +1,29 @@
 <?php
+
 /*
- +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
- |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
- +--------------------------------------------------------------------+
+  +--------------------------------------------------------------------+
+  | CiviCRM version 4.6                                                |
+  +--------------------------------------------------------------------+
+  | Copyright CiviCRM LLC (c) 2004-2015                                |
+  +--------------------------------------------------------------------+
+  | This file is a part of CiviCRM.                                    |
+  |                                                                    |
+  | CiviCRM is free software; you can copy, modify, and distribute it  |
+  | under the terms of the GNU Affero General Public License           |
+  | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
+  |                                                                    |
+  | CiviCRM is distributed in the hope that it will be useful, but     |
+  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
+  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
+  | See the GNU Affero General Public License for more details.        |
+  |                                                                    |
+  | You should have received a copy of the GNU Affero General Public   |
+  | License and the CiviCRM Licensing Exception along                  |
+  | with this program; if not, contact CiviCRM LLC                     |
+  | at info[AT]civicrm[DOT]org. If you have questions about the        |
+  | GNU Affero General Public License or the licensing of CiviCRM,     |
+  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+  +--------------------------------------------------------------------+
  */
 
 /**
@@ -34,13 +35,13 @@
  */
 
 /**
- * class to represent the actions that can be performed on a group of contacts
- * used by the search forms
+ * class to represent the actions that can be performed on a group of
+ * relationships used by the search forms
  *
  */
 class CRM_Relationship_Task {
 
-  const DELETE_CONTRIBUTIONS = 1, PRINT_CONTRIBUTIONS = 2, EXPORT_CONTRIBUTIONS = 3, BATCH_CONTRIBUTIONS = 4, EMAIL_CONTACTS = 5, UPDATE_STATUS = 6, PDF_RECEIPT = 7;
+  const EXPORT_RELATIONSHIPS = 1;
 
   /**
    * The task array
@@ -58,83 +59,25 @@ class CRM_Relationship_Task {
 
   /**
    * These tasks are the core set of tasks that the user can perform
-   * on a contact / group of contacts
+   * on a relationship / group of relationships
    *
    * @return array
-   *   the set of tasks for a group of contacts
+   *   the set of tasks for a group of relationships
    */
   public static function &tasks() {
     if (!(self::$_tasks)) {
       self::$_tasks = array(
         1 => array(
-          'title' => ts('Delete Contributions'),
-          'class' => 'CRM_Contribute_Form_Task_Delete',
-          'result' => FALSE,
-        ),
-        2 => array(
-          'title' => ts('Print Selected Rows'),
-          'class' => 'CRM_Contribute_Form_Task_Print',
-          'result' => FALSE,
-        ),
-        3 => array(
-          'title' => ts('Export Contributions'),
+          'title' => ts('Export Relationships'),
           'class' => array(
             'CRM_Export_Form_Select',
             'CRM_Export_Form_Map',
           ),
           'result' => FALSE,
         ),
-        4 => array(
-          'title' => ts('Batch Update Contributions Via Profile'),
-          'class' => array(
-            'CRM_Contribute_Form_Task_PickProfile',
-            'CRM_Contribute_Form_Task_Batch',
-          ),
-          'result' => TRUE,
-        ),
-        5 => array(
-          'title' => ts('Send Email to Contacts'),
-          'class' => 'CRM_Contribute_Form_Task_Email',
-          'result' => TRUE,
-        ),
-        6 => array(
-          'title' => ts('Update Pending Contribution Status'),
-          'class' => 'CRM_Contribute_Form_Task_Status',
-          'result' => TRUE,
-        ),
-        7 => array(
-          'title' => ts('Print or Email Contribution Receipts'),
-          'class' => 'CRM_Contribute_Form_Task_PDF',
-          'result' => FALSE,
-        ),
-        8 => array(
-          'title' => ts('Thank-you Letters for Contributions'),
-          'class' => 'CRM_Contribute_Form_Task_PDFLetter',
-          'result' => FALSE,
-        ),
-        9 => array(
-          'title' => ts('Print or Email Contribution Invoices'),
-          'class' => 'CRM_Contribute_Form_Task_Invoice',
-          'result' => FALSE,
-        ),
       );
 
-      //CRM-4418, check for delete
-      if (!CRM_Core_Permission::check('delete in CiviContribute')) {
-        unset(self::$_tasks[1]);
-      }
-      //CRM-12920 - check for edit permission
-      if (!CRM_Core_Permission::check('edit contributions')) {
-        unset(self::$_tasks[4], self::$_tasks[6]);
-      }
-
-      // remove action "Print or Email Contribution Invoices"
-      $invoiceSettings = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
-      $invoicing = CRM_Utils_Array::value('invoicing', $invoiceSettings);
-      if (!$invoicing) {
-        unset(self::$_tasks[9]);
-      }
-      CRM_Utils_Hook::searchTasks('contribution', self::$_tasks);
+      CRM_Utils_Hook::searchTasks('relationship', self::$_tasks);
       asort(self::$_tasks);
     }
 
@@ -143,7 +86,7 @@ class CRM_Relationship_Task {
 
   /**
    * These tasks are the core set of task titles
-   * on contributors
+   * on relationships
    *
    * @return array
    *   the set of task titles
@@ -163,52 +106,35 @@ class CRM_Relationship_Task {
    *
    * @param int $permission
    *
-   * @param bool $softCreditFiltering
-   *
    * @return array
    *   set of tasks that are valid for the user
    */
-  public static function &permissionedTaskTitles($permission, $softCreditFiltering = FALSE) {
-    //NAKIJKEN
-    $tasks = array();
-    /*
-      if (($permission == CRM_Core_Permission::EDIT)
-      || CRM_Core_Permission::check('edit contributions')
-      ) {
-      $tasks = self::taskTitles();
-      }
-      else {
-      $tasks = array(
-      3 => self::$_tasks[3]['title'],
-      5 => self::$_tasks[5]['title'],
-      7 => self::$_tasks[7]['title'],
-      );
+  public static function &permissionedTaskTitles($permission) {
 
-      //CRM-4418,
-      if (CRM_Core_Permission::check('delete in CiviContribute')) {
-      $tasks[1] = self::$_tasks[1]['title'];
-      }
-      }
-      if ($softCreditFiltering) {
-      unset($tasks[4], $tasks[7]);
-      } */
+    $tasks = array();
+
+    if (($permission == CRM_Core_Permission::EDIT) || CRM_Core_Permission::check('edit contacts')
+    ) {
+      $tasks = self::taskTitles();
+    }
+
     return $tasks;
   }
 
   /**
    * These tasks are the core set of tasks that the user can perform
-   * on contributors
+   * on relationships
    *
    * @param int $value
    *
    * @return array
-   *   the set of tasks for a group of contributors
+   *   the set of tasks for a group of relationships
    */
   public static function getTask($value) {
     self::tasks();
     if (!$value || !CRM_Utils_Array::value($value, self::$_tasks)) {
-      // make the print task by default
-      $value = 2;
+    // make the export task by default
+      $value = 1;
     }
     // this is possible since hooks can inject a task
     // CRM-13697
