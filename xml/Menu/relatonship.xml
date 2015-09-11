@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+
+<menu>
+  <item>
+    <path>civicrm/rel/search</path>
+    <title>Find Relations</title>
+    <page_callback>CRM_Relationship_Controller_Search</page_callback>
+  </item>
+</menu>
