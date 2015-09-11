@@ -137,7 +137,7 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
     $session = CRM_Core_Session::singleton();
 
     $qfKey = CRM_Utils_Request::retrieve('qfKey', 'String', $form);
-
+    $urlParams = 'force=1';
     if (CRM_Utils_Rule::qfKey($qfKey)) {
       $urlParams .= "&qfKey=$qfKey";
     }
