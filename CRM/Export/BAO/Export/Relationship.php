@@ -89,8 +89,6 @@ class CRM_Export_BAO_Export_Relationship extends CRM_Export_BAO_Export {
 
     $returnProperties = CRM_Relationship_BAO_Query::defaultReturnProperties();
 
-    dsm($returnProperties);
-
     if ($moreReturnProperties) {
       $returnProperties = array_merge($returnProperties, $moreReturnProperties);
     }
@@ -162,7 +160,6 @@ class CRM_Export_BAO_Export_Relationship extends CRM_Export_BAO_Export {
     }
     while (1) {
       $limitQuery = "{$queryString} LIMIT {$offset}, {$rowCount}";
-      dsm($limitQuery);
       $dao = CRM_Core_DAO::executeQuery($limitQuery);
       if ($dao->N <= 0) {
         break;
@@ -185,8 +182,6 @@ class CRM_Export_BAO_Export_Relationship extends CRM_Export_BAO_Export {
         $iterationDAO = clone $dao;
 
         //first loop through output columns so that we return what is required, and in same order.
-
-        dsm($outputColumns);
         foreach ($outputColumns as $field => $value) {
           //we should set header only once
           if ($setHeader) {
@@ -224,7 +219,6 @@ class CRM_Export_BAO_Export_Relationship extends CRM_Export_BAO_Export {
           }
         }
 
-        dsm($sqlColumns);
         if ($setHeader) {
           $exportTempTable = self::createTempTable($sqlColumns);
         }
