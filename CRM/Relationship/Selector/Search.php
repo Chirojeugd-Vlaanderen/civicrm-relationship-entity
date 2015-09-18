@@ -334,7 +334,7 @@ class CRM_Relationship_Selector_Search extends CRM_Core_Selector_Base implements
       self::$_columnHeaders = array(
         array(
           'name' => ts('Contact A'),
-          'sort' => 'relationship_contact_a',
+          'sort' => 'contact_a.sort_name',
           'direction' => CRM_Utils_Sort::DESCENDING,
         ),
         array(
@@ -344,7 +344,7 @@ class CRM_Relationship_Selector_Search extends CRM_Core_Selector_Base implements
         ),
         array(
           'name' => ts('Contact B'),
-          'sort' => 'relationship_contact_b',
+          'sort' => 'contact_b.sort_name',
           'direction' => CRM_Utils_Sort::DESCENDING,
         ),
         array(

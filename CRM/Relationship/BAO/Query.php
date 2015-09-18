@@ -250,7 +250,7 @@ class CRM_Relationship_BAO_Query {
     else {
       $this->_fields = CRM_Contact_BAO_Relationship::fields();
       foreach ($this->_fields as $defaultFieldKey => $defaultField) {
-        $this->_fields[$defaultFieldKey]['where'] = 'relationship.' . $defaultFieldKey;
+        $this->_fields[$defaultFieldKey]['where'] = 'civicrm_relationship.' . $defaultFieldKey;
       }
       // Add display_name for both contacts
       $contact_fields = CRM_Contact_BAO_Contact::exportableFields('All', FALSE, TRUE, TRUE);
@@ -288,7 +288,7 @@ class CRM_Relationship_BAO_Query {
 
     $this->_customQuery = NULL;
 
-    $this->_select['relationship_id'] = 'relationship.id as relationship_id';
+    $this->_select['relationship_id'] = 'civicrm_relationship.id as relationship_id';
     $this->_element['relationship_id'] = 1;
     $this->_tables['civicrm_relationship'] = 1;
     $this->_tables['civicrm_relationship_type'] = 1;
@@ -420,16 +420,16 @@ class CRM_Relationship_BAO_Query {
         $today = date('Ymd');
         if ($value == 0) {
           $this->_where[$grouping][] = "(
-relationship.is_active = 1 AND
-( relationship.end_date IS NULL OR relationship.end_date >= {$today} ) AND
-( relationship.start_date IS NULL OR relationship.start_date <= {$today} )
+civicrm_relationship.is_active = 1 AND
+( civicrm_relationship.end_date IS NULL OR civicrm_relationship.end_date >= {$today} ) AND
+( civicrm_relationship.start_date IS NULL OR civicrm_relationship.start_date <= {$today} )
 )";
         }
         elseif ($value == 1) {
           $this->_where[$grouping][] = "(
-relationship.is_active = 0 OR
-relationship.end_date < {$today} OR
-relationship.start_date > {$today}
+civicrm_relationship.is_active = 0 OR
+civicrm_relationship.end_date < {$today} OR
+civicrm_relationship.start_date > {$today}
 )";
         }
         return;
@@ -441,7 +441,7 @@ relationship.start_date > {$today}
           $relationship_type_ids[substr_replace($relationship_type_value, "", -4)] = substr_replace($relationship_type_value, "", -4);
         }
         $relationship_type_ids_string = implode("', '", $relationship_type_ids);
-        $this->_where[$grouping][] = "relationship.relationship_type_id in (' $relationship_type_ids_string  ')";
+        $this->_where[$grouping][] = "civicrm_relationship.relationship_type_id in (' $relationship_type_ids_string  ')";
         return;
 
       case 'target_name':
@@ -656,7 +656,7 @@ relationship.start_date > {$today}
   }
 
   /**
-   * Create and query the db for a relationship search.
+   * Create and query the db for an contact search.
    *
    * @param int $offset
    *   The offset for the query.
@@ -666,10 +666,12 @@ relationship.start_date > {$today}
    *   The order by string.
    * @param bool $count
    *   Is this a count only query ?.
-   * @param bool $includeRelationshipIds
-   *   Should we include relationship ids?.
-   * @param bool $groupRelationships
-   *   If true, return only the relationship ids.
+   * @param bool $includeContactIds
+   *   Should we include contact ids?.
+   * @param bool $sortByChar
+   *   If true returns the distinct array of first characters for search results.
+   * @param bool $groupContacts
+   *   If true, return only the contact ids.
    * @param bool $returnQuery
    *   Should we return the query as a string.
    * @param string $additionalWhereClause
@@ -683,7 +685,7 @@ relationship.start_date > {$today}
    * @return CRM_Core_DAO
    */
   public function searchQuery(
-  $offset = 0, $rowCount = 0, $sort = NULL, $count = FALSE, $includeRelationshipIds = FALSE, $groupRelationships = FALSE, $returnQuery = FALSE, $additionalWhereClause = NULL, $sortOrder = NULL, $additionalFromClause = NULL, $skipOrderAndLimit = FALSE
+  $offset = 0, $rowCount = 0, $sort = NULL, $count = FALSE, $includeRelationshipIds = FALSE, $sortByChar = FALSE, $groupRelationships = FALSE, $returnQuery = FALSE, $additionalWhereClause = NULL, $sortOrder = NULL, $additionalFromClause = NULL, $skipOrderAndLimit = FALSE
   ) {
 
     if ($includeRelationshipIds) {
@@ -698,7 +700,7 @@ relationship.start_date > {$today}
         $groupBy = $this->_groupByComponentClause;
       }
       elseif ($this->_useGroupBy) {
-        $groupBy = ' GROUP BY relationship.id';
+        $groupBy = ' GROUP BY civicrm_relationship.id';
       }
     }
 
@@ -726,13 +728,16 @@ relationship.start_date > {$today}
 
             // always add relationship.id to the ORDER clause
             // so the order is deterministic
-            if (strpos('relationship.id', $order) === FALSE) {
-              $order .= ", relationship.id";
+            if (strpos('civicrm_relationship.id', $order) === FALSE) {
+              $order .= ", civicrm_relationship.id";
             }
           }
         }
+        elseif ($sortByChar) {
+          $order = " ORDER BY UPPER(LEFT(contact_a.sort_name, 1)) asc";
+        }
         else {
-          $order = " ORDER BY relationship.id";
+          $order = " ORDER BY contact_a.sort_name asc, civicrm_relationship.id";
         }
       }
 
@@ -758,7 +763,7 @@ relationship.start_date > {$today}
     // CRM-15231
     $this->_sort = $sort;
 
-    list($select, $from, $where, $having) = $this->query($count, $groupRelationships);
+    list($select, $from, $where, $having) = $this->query($count, $sortByChar, $groupRelationships);
 
     if ($additionalWhereClause) {
       $where = $where . ' AND ' . $additionalWhereClause;
@@ -829,7 +834,7 @@ relationship.start_date > {$today}
 
             if ($tName == 'relationship') {
               if ($fieldName != 'id') {
-                $this->_select[$name] = "relationship.{$fieldName}  as `$name`";
+                $this->_select[$name] = "civicrm_relationship.{$fieldName}  as `$name`";
               }
             }
             else {
@@ -845,15 +850,7 @@ relationship.start_date > {$today}
       $this->_customQuery->query();
       $this->_select = array_merge($this->_select, $this->_customQuery->_select);
       $this->_element = array_merge($this->_element, $this->_customQuery->_element);
-      // hack, replace table name
-      foreach ($this->_customQuery->_tables as $tableKey => $tableValue) {
-        $this->_customQuery->_tables[$tableKey] = str_replace("`civicrm_relationship`", "relationship", $this->_customQuery->_tables[$tableKey]);
-      }
       $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
-      // hack, replace table name
-      foreach ($this->_customQuery->_whereTables as $tableKey => $tableValue) {
-        $this->_customQuery->_whereTables[$tableKey] = str_replace("`civicrm_relationship`", "relationship", $this->_customQuery->_whereTables[$tableKey]);
-      }
       $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
       $this->_options = $this->_customQuery->_options;
     }
@@ -868,7 +865,7 @@ relationship.start_date > {$today}
    * @return array
    *   sql query parts as an array
    */
-  public function query($count = FALSE, $groupRelationships = FALSE) {
+  public function query($count = FALSE, $sortByChar = FALSE, $groupRelationships = FALSE) {
     if ($count) {
       if (isset($this->_rowCountClause)) {
         $select = "SELECT {$this->_rowCountClause}";
@@ -880,7 +877,7 @@ relationship.start_date > {$today}
         $select = "SELECT count( DISTINCT {$this->_distinctComponentClause} )";
       }
       else {
-        $select = 'SELECT count(DISTINCT relationship.id) as rowCount';
+        $select = 'SELECT count(DISTINCT civicrm_relationship.id) as rowCount';
       }
       $from = $this->_simpleFromClause;
       if ($this->_useDistinct) {
@@ -888,7 +885,7 @@ relationship.start_date > {$today}
       }
     }
     elseif ($groupRelationships) {
-      $select = 'SELECT relationship.id as id';
+      $select = 'SELECT civicrm_relationship.id as id';
       if ($this->_useDistinct) {
         $this->_useGroupBy = TRUE;
       }
@@ -946,7 +943,7 @@ relationship.start_date > {$today}
    */
   public static function fromClause(&$tables, $inner = NULL, $right = NULL) {
 
-    $from = ' FROM civicrm_relationship relationship';
+    $from = ' FROM civicrm_relationship';
     if (empty($tables)) {
       return $from;
     }
@@ -1009,12 +1006,12 @@ relationship.start_date > {$today}
       switch ($name) {
 
         case 'civicrm_relationship_type':
-          $from .= " $side JOIN civicrm_relationship_type relationship_type ON relationship.relationship_type_id = relationship_type.id ";
+          $from .= " $side JOIN civicrm_relationship_type relationship_type ON civicrm_relationship.relationship_type_id = relationship_type.id ";
           continue;
 
         case 'civicrm_contact':
-          $from .= " $side JOIN civicrm_contact contact_a ON relationship.contact_id_a = contact_a.id ";
-          $from .= " $side JOIN civicrm_contact contact_b ON relationship.contact_id_b = contact_b.id ";
+          $from .= " $side JOIN civicrm_contact contact_a ON civicrm_relationship.contact_id_a = contact_a.id ";
+          $from .= " $side JOIN civicrm_contact contact_b ON civicrm_relationship.contact_id_b = contact_b.id ";
           continue;
       }
     }

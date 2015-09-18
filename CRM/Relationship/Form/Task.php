@@ -75,6 +75,11 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
   public $_contactIds;
 
   /**
+   * This includes the submitted values of the search form
+   */
+  static protected $_searchFormValues;
+
+  /**
    * Build all the data structures needed to build the form.
    *
    * @param
@@ -115,18 +120,18 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
 
       $query = new CRM_Relationship_BAO_Query($queryParams);
 
-      $query->_distinctComponentClause = ' civicrm_relationship.id';
+      $query->_distinctComponentClause = 'civicrm_relationship.id';
       $query->_groupByComponentClause = ' GROUP BY civicrm_relationship.id ';
 
       $result = $query->searchQuery(0, 0, $sortOrder);
       while ($result->fetch()) {
         $ids[] = $result->relationship_id;
       }
-      $form->assign('totalSelectedContributions', $form->get('rowCount'));
+      $form->assign('totalSelectedRelationships', $form->get('rowCount'));
     }
 
     if (!empty($ids)) {
-      $form->_componentClause = ' relationship.id IN ( ' . implode(',', $ids) . ' ) ';
+      $form->_componentClause = ' civicrm_relationship.id IN ( ' . implode(',', $ids) . ' ) ';
 
       $form->assign('totalSelectedRelationships', count($ids));
     }
@@ -151,6 +156,7 @@ class CRM_Relationship_Form_Task extends CRM_Core_Form {
         $urlParams
       ));
     }
+
   }
 
   /**

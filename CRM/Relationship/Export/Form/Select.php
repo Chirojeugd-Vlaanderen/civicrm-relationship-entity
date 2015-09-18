@@ -6,7 +6,8 @@
  * and open the template in the editor.
  */
 
-class CRM_Export_Form_Select_Relationship extends CRM_Export_Form_Select {
+class CRM_Relationship_Export_Form_Select extends CRM_Export_Form_Select {
+
   /**
    * Export modes.
    */
@@ -29,7 +30,6 @@ class CRM_Export_Form_Select_Relationship extends CRM_Export_Form_Select {
    * @return void
    */
   public function preProcess() {
-
     $this->_selectAll = FALSE;
     $this->_exportMode = self::RELATIONSHIP_EXPORT;
     $this->_componentIds = array();

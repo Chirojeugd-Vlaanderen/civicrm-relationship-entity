@@ -70,8 +70,8 @@ class CRM_Relationship_Task {
         1 => array(
           'title' => ts('Export Relationships'),
           'class' => array(
-            'CRM_Export_Form_Select_Relationship',
-            'CRM_Export_Form_Map',
+            'CRM_Relationship_Export_Form_Select',
+            'CRM_Relationship_Export_Form_Map',
           ),
           'result' => FALSE,
         ),
@@ -80,7 +80,6 @@ class CRM_Relationship_Task {
       CRM_Utils_Hook::searchTasks('relationship', self::$_tasks);
       asort(self::$_tasks);
     }
-
     return self::$_tasks;
   }
 
