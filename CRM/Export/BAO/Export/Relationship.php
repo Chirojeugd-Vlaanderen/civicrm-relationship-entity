@@ -59,36 +59,38 @@ class CRM_Export_BAO_Export_Relationship extends CRM_Export_BAO_Export {
   $selectAll, $ids, $params, $order = NULL, $fields = NULL, $moreReturnProperties = NULL, $exportMode = CRM_Export_Form_Select_Relationship::RELATIONSHIP_EXPORT, $componentClause = NULL, $componentTable = NULL, $mergeSameAddress = FALSE, $mergeSameHousehold = FALSE, $exportParams = array(), $queryOperator = 'AND'
   ) {
     $headerRows = $returnProperties = array();
-    $paymentFields = $selectedPaymentFields = FALSE;
-    $relationField = NULL;
 
-    $phoneTypes = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Phone', 'phone_type_id');
-    $imProviders = CRM_Core_PseudoConstant::get('CRM_Core_DAO_IM', 'provider_id');
-    $contactRelationshipTypes = CRM_Contact_BAO_Relationship::getContactRelationshipType(
-            NULL, NULL, NULL, NULL, TRUE, 'name', FALSE
-    );
     $queryMode = CRM_Relationship_BAO_Query::MODE_RELATIONSHIPS;
 
-    // In our case the passed fields are always null, so we set them
-    // explicitly
-    // Copied from CRM_Relationship_BAO_QUERY should be refactored to seperate
-    // method.
+    //Welke velden exporteren, gezet bij een mapping, indien niet gezet, primary fields.
+    if ($fields) {
+      foreach ($fields as $key => $value) {
+        $fieldName = CRM_Utils_Array::value(0, $value);
+        if (!$fieldName) {
+          continue;
+        }
+        $returnProperties[$fieldName] = 1;
+      }
+    }
+    else {
+      // Copied from CRM_Relationship_BAO_QUERY should be refactored to seperate
+      // method.
+      $fields = CRM_Contact_BAO_Relationship::fields();
+      // Add display_name for both contacts
+      $contact_fields = CRM_Contact_BAO_Contact::exportableFields('All', FALSE, TRUE, TRUE);
+      $fields['contact_a'] = $contact_fields['display_name'];
+      $fields['contact_a']['where'] = 'contact_a.display_name';
+      $fields['contact_b'] = $contact_fields['display_name'];
+      $fields['contact_b']['where'] = 'contact_b.display_name';
+      // Add relationship type field
+      $relationship_type_fields = CRM_Contact_BAO_RelationshipType::fields();
+      $fields['relationship_type'] = $relationship_type_fields['label_a_b'];
+      $fields['relationship_type']['where'] = 'relationship_type.label_a_b';
+      // Add custom fields
+      $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Relationship'));
 
-    // Add display_name for both contacts
-    $contact_fields = CRM_Contact_BAO_Contact::exportableFields('All', FALSE, TRUE, TRUE);
-    $fields['contact_a'] = $contact_fields['display_name'];
-    $fields['contact_a']['where'] = 'contact_a.display_name';
-    $fields['contact_b'] = $contact_fields['display_name'];
-    $fields['contact_b']['where'] = 'contact_b.display_name';
-    // Add relationship type field
-    $relationship_type_fields = CRM_Contact_BAO_RelationshipType::fields();
-    $fields['relationship_type'] = $relationship_type_fields['label_a_b'];
-    $fields['relationship_type']['where'] = 'relationship_type.label_a_b';
-    // Add custom fields
-    $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Relationship'));
-
-    $returnProperties = CRM_Relationship_BAO_Query::defaultReturnProperties();
-
+      $returnProperties = CRM_Relationship_BAO_Query::defaultReturnProperties();
+    }
     if ($moreReturnProperties) {
       $returnProperties = array_merge($returnProperties, $moreReturnProperties);
     }
