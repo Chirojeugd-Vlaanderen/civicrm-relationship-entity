@@ -6,4 +6,9 @@
     <title>Find Relations</title>
     <page_callback>CRM_Relationship_Controller_Search</page_callback>
   </item>
+  <item>
+    <path>civicrm/ajax/relMarkSelection</path>
+    <page_callback>CRM_Relationship_Page_AJAX::selectUnselectRelationships</page_callback>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
 </menu>

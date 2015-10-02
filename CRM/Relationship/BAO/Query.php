@@ -86,6 +86,13 @@ class CRM_Relationship_BAO_Query {
   public $_customQuery;
 
   /**
+   * The english language version of the query
+   *
+   * @var array
+   */
+  public $_qill;
+
+  /**
    * Should we enable the distinct clause, used if we are including
    * more than one group
    *
@@ -187,6 +194,13 @@ class CRM_Relationship_BAO_Query {
   public $_paramLookup;
 
   /**
+   * Track open panes.
+   *
+   * @var array
+   */
+  public static $_openedPanes = array();
+
+  /**
    * The having values
    *
    * @var string
@@ -223,7 +237,7 @@ class CRM_Relationship_BAO_Query {
    * @return \CRM_Relationship_BAO_Query
    */
   public function __construct(
-  $params = NULL, $returnProperties = NULL, $fields = NULL, $includeRelationshipIds = FALSE, $strict = FALSE, $skipPermission = FALSE, $operator = 'AND'
+  $params = NULL, $returnProperties = NULL, $fields = NULL, $includeRelationshipIds = FALSE, $strict = FALSE, $mode = 1, $skipPermission = FALSE, $operator = 'AND'
   ) {
     $this->_params = &$params;
     if ($this->_params == NULL) {
@@ -231,7 +245,7 @@ class CRM_Relationship_BAO_Query {
     }
 
     if (empty($returnProperties)) {
-      $this->_returnProperties = array();
+      $this->_returnProperties = self::defaultReturnProperties($mode);
     }
     else {
       $this->_returnProperties = &$returnProperties;
@@ -239,6 +253,7 @@ class CRM_Relationship_BAO_Query {
 
     $this->_includeRelationshipIds = $includeRelationshipIds;
     $this->_strict = $strict;
+    $this->_mode = $mode;
     $this->_skipPermission = $skipPermission;
     //$this->setOperator($operator);
 
@@ -250,7 +265,7 @@ class CRM_Relationship_BAO_Query {
     else {
       $this->_fields = CRM_Contact_BAO_Relationship::fields();
       foreach ($this->_fields as $defaultFieldKey => $defaultField) {
-        $this->_fields[$defaultFieldKey]['where'] = 'civicrm_relationship.' . $defaultFieldKey;
+        $this->_fields[$defaultFieldKey]['where'] = 'relationship.' . $defaultFieldKey;
       }
       // Add display_name for both contacts
       $contact_fields = CRM_Contact_BAO_Contact::exportableFields('All', FALSE, TRUE, TRUE);
@@ -288,11 +303,12 @@ class CRM_Relationship_BAO_Query {
 
     $this->_customQuery = NULL;
 
-    $this->_select['relationship_id'] = 'civicrm_relationship.id as relationship_id';
+    $this->_select['relationship_id'] = 'relationship.id as relationship_id';
     $this->_element['relationship_id'] = 1;
     $this->_tables['civicrm_relationship'] = 1;
     $this->_tables['civicrm_relationship_type'] = 1;
-    $this->_tables['civicrm_contact'] = 1;
+    $this->_tables['contact_a'] = 1;
+    $this->_tables['contact_b'] = 1;
 
     if (!empty($this->_params)) {
       $this->buildParamsLookup();
@@ -304,6 +320,64 @@ class CRM_Relationship_BAO_Query {
     $this->_whereClause = $this->whereClause();
     $this->_fromClause = self::fromClause($this->_tables, NULL, NULL);
     $this->_simpleFromClause = self::fromClause($this->_whereTables, NULL, NULL);
+
+    $this->openedSearchPanes(TRUE);
+  }
+
+  /**
+   * Getter for the qill object.
+   *
+   * @return string
+   */
+  public function qill() {
+    return $this->_qill;
+  }
+
+  /**
+   * @param bool $reset
+   *
+   * @return array
+   */
+  public function openedSearchPanes($reset = FALSE) {
+    if (!$reset || empty($this->_whereTables)) {
+      return self::$_openedPanes;
+    }
+
+    // pane name to table mapper
+    $panesMapper = array(
+      ts('Contact A') => 'contact_a',
+      ts('Contact B') => 'contact_b',
+    );
+
+    foreach (array_keys($this->_whereTables) as $table) {
+      if ($panName = array_search($table, $panesMapper)) {
+        self::$_openedPanes[$panName] = TRUE;
+      }
+    }
+
+    return self::$_openedPanes;
+  }
+
+  /**
+   * Fetch a list of contacts from the prev/next cache for displaying a search results page
+   *
+   * @param string $cacheKey
+   * @param int $offset
+   * @param int $rowCount
+   * @param bool $includeRelationshipIds
+   * @return CRM_Core_DAO
+   */
+  public function getCachedRelationships($cacheKey, $offset, $rowCount, $includeRelationshipIds) {
+    $this->_includeRelationshipIds = $includeRelationshipIds;
+    list($select, $from, $where) = $this->query(FALSE, FALSE);
+    // strip FROM civicrm_relationship relationship van from-clause 39 tekens dus.
+    $from = " FROM civicrm_prevnext_cache pnc INNER JOIN civicrm_relationship relationship ON relationship.id = pnc.entity_id1 AND pnc.cacheKey = '$cacheKey' " . substr($from, 39);
+    $order = " ORDER BY pnc.id";
+    $groupBy = " GROUP BY relationship.id";
+    $limit = " LIMIT $offset, $rowCount";
+    $query = "$select $from $where $groupBy $order $limit";
+
+    return CRM_Core_DAO::executeQuery($query);
   }
 
   public function buildParamsLookup() {
@@ -363,6 +437,7 @@ class CRM_Relationship_BAO_Query {
    */
   public function whereClause() {
     $this->_where[0] = array();
+    $this->_qill[0] = array();
 
     $this->includeRelationshipIds();
     if (!empty($this->_params)) {
@@ -370,7 +445,13 @@ class CRM_Relationship_BAO_Query {
         if (empty($this->_params[$id][0])) {
           continue;
         }
-        $this->whereClauseSingle($this->_params[$id]);
+        // check for both id and contact_id
+        if ($this->_params[$id][0] == 'id' || $this->_params[$id][0] == 'relationship_id') {
+          $this->_where[0][] = self::buildClause("relationship.id", $this->_params[$id][1], $this->_params[$id][2]);
+        }
+        else {
+          $this->whereClauseSingle($this->_params[$id]);
+        }
       }
     }
 
@@ -378,13 +459,14 @@ class CRM_Relationship_BAO_Query {
       if (!empty($this->_customQuery->_where)) {
         $this->_where = CRM_Utils_Array::crmArrayMerge($this->_where, $this->_customQuery->_where);
       }
+      $this->_qill = CRM_Utils_Array::crmArrayMerge($this->_qill, $this->_customQuery->_qill);
     }
 
     $clauses = array();
     $andClauses = array();
 
     $validClauses = 0;
-    if (!empty($this->_where)) {
+   if (!empty($this->_where)) {
       foreach ($this->_where as $grouping => $values) {
         if ($grouping > 0 && !empty($values)) {
           $clauses[$grouping] = ' ( ' . implode(" {$this->_operator} ", $values) . ' ) ';
@@ -420,16 +502,16 @@ class CRM_Relationship_BAO_Query {
         $today = date('Ymd');
         if ($value == 0) {
           $this->_where[$grouping][] = "(
-civicrm_relationship.is_active = 1 AND
-( civicrm_relationship.end_date IS NULL OR civicrm_relationship.end_date >= {$today} ) AND
-( civicrm_relationship.start_date IS NULL OR civicrm_relationship.start_date <= {$today} )
+relationship.is_active = 1 AND
+( relationship.end_date IS NULL OR relationship.end_date >= {$today} ) AND
+( relationship.start_date IS NULL OR relationship.start_date <= {$today} )
 )";
         }
         elseif ($value == 1) {
           $this->_where[$grouping][] = "(
-civicrm_relationship.is_active = 0 OR
-civicrm_relationship.end_date < {$today} OR
-civicrm_relationship.start_date > {$today}
+relationship.is_active = 0 OR
+relationship.end_date < {$today} OR
+relationship.start_date > {$today}
 )";
         }
         return;
@@ -441,7 +523,7 @@ civicrm_relationship.start_date > {$today}
           $relationship_type_ids[substr_replace($relationship_type_value, "", -4)] = substr_replace($relationship_type_value, "", -4);
         }
         $relationship_type_ids_string = implode("', '", $relationship_type_ids);
-        $this->_where[$grouping][] = "civicrm_relationship.relationship_type_id in (' $relationship_type_ids_string  ')";
+        $this->_where[$grouping][] = "relationship.relationship_type_id in (' $relationship_type_ids_string  ')";
         return;
 
       case 'target_name':
@@ -462,7 +544,8 @@ civicrm_relationship.start_date > {$today}
         return;
 
       default:
-        //Doe niets bij niet ondersteunde parameter. 
+        //Doe niets bij niet ondersteunde parameter.
+        //$this->restWhere($values);
         return;
     }
   }
@@ -585,11 +668,15 @@ civicrm_relationship.start_date > {$today}
    *
    * @return array|null
    */
-  public static function defaultReturnProperties(
-  $includeCustomFields = TRUE
-  ) {
-    $properties = array(
-      'contact_id_a' => 1,
+  public static function defaultReturnProperties($mode = 1) {
+    if (!isset(self::$_defaultReturnProperties)) {
+      self::$_defaultReturnProperties = array();
+    }
+
+    if (!isset(self::$_defaultReturnProperties[$mode])) {
+      if (empty(self::$_defaultReturnProperties[$mode])) {
+        self::$_defaultReturnProperties[$mode] = array(
+          'contact_id_a' => 1,
       'contact_id_b' => 1,
       'contact_a' => 1,
       'contact_b' => 1,
@@ -599,60 +686,9 @@ civicrm_relationship.start_date > {$today}
       'end_date' => 1,
       'is_active' => 1,
     );
-
-    if ($includeCustomFields) {
-      // also get all the custom membership properties
-      $fields = CRM_Core_BAO_CustomField::getFieldsForImport('Relationship');
-      if (!empty($fields)) {
-        foreach ($fields as $name => $dontCare) {
-          $properties[$name] = 1;
-        }
       }
     }
-    return $properties;
-  }
-
-  /**
-   * Add all the elements of relation search.
-   *
-   *
-   * @param CRM_Core_Form $form
-   *
-   * @return void
-   */
-  public static function buildSearchForm(&$form) {
-
-    // text for sort_name
-    $form->addElement('text', 'target_name', ts('Target Contact'), CRM_Core_DAO::getAttribute('CRM_Contact_DAO_Contact', 'sort_name'
-        )
-    );
-
-    $allRelationshipType = array();
-    $allRelationshipType = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, NULL, NULL, NULL, TRUE);
-    $form->add('select', 'relationship_type_id', ts('Relationship Type'), array('' => ts('- select -')) + $allRelationshipType, FALSE, array('class' => 'crm-select2', 'multiple' => 'multiple',));
-
-    // relation status
-    $relStatusOption = array(ts('Active'), ts('Inactive'), ts('All'));
-    $form->addRadio('is_active', ts('Relationship Status'), $relStatusOption);
-    $form->setDefaults(array('is_active' => 0));
-
-    CRM_Core_Form_Date::buildDateRange($form, 'start_date', 1, '_low', '_high', ts('From:'), FALSE, FALSE);
-    CRM_Core_Form_Date::buildDateRange($form, 'end_date', 1, '_low', '_high', ts('From:'), FALSE, FALSE);
-
-    // add all the custom  searchable fields
-    $relationship = array('Relationship');
-    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $relationship);
-    if ($groupDetails) {
-      $form->assign('relationshipGroupTree', $groupDetails);
-      foreach ($groupDetails as $group) {
-        foreach ($group['fields'] as $field) {
-          $fieldId = $field['id'];
-          $elementName = 'custom_' . $fieldId;
-          CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $fieldId, FALSE, FALSE, TRUE
-          );
-        }
-      }
-    }
+    return self::$_defaultReturnProperties[$mode];
   }
 
   /**
@@ -700,7 +736,7 @@ civicrm_relationship.start_date > {$today}
         $groupBy = $this->_groupByComponentClause;
       }
       elseif ($this->_useGroupBy) {
-        $groupBy = ' GROUP BY civicrm_relationship.id';
+        $groupBy = ' GROUP BY relationship.id';
       }
     }
 
@@ -728,8 +764,8 @@ civicrm_relationship.start_date > {$today}
 
             // always add relationship.id to the ORDER clause
             // so the order is deterministic
-            if (strpos('civicrm_relationship.id', $order) === FALSE) {
-              $order .= ", civicrm_relationship.id";
+            if (strpos('relationship.id', $order) === FALSE) {
+              $order .= ", relationship.id";
             }
           }
         }
@@ -737,7 +773,7 @@ civicrm_relationship.start_date > {$today}
           $order = " ORDER BY UPPER(LEFT(contact_a.sort_name, 1)) asc";
         }
         else {
-          $order = " ORDER BY contact_a.sort_name asc, civicrm_relationship.id";
+          $order = " ORDER BY contact_a.sort_name asc, relationship.id";
         }
       }
 
@@ -763,7 +799,7 @@ civicrm_relationship.start_date > {$today}
     // CRM-15231
     $this->_sort = $sort;
 
-    list($select, $from, $where, $having) = $this->query($count, $sortByChar, $groupRelationships);
+    list($select, $from, $where, $having) = $this->query($count, $groupRelationships);
 
     if ($additionalWhereClause) {
       $where = $where . ' AND ' . $additionalWhereClause;
@@ -809,6 +845,7 @@ civicrm_relationship.start_date > {$today}
    * @return void
    */
   public function selectClause() {
+
     foreach ($this->_fields as $name => $field) {
       // if this is a hierarchical name, we ignore it
       $names = explode('-', $name);
@@ -818,41 +855,76 @@ civicrm_relationship.start_date > {$today}
 
       $cfID = CRM_Core_BAO_CustomField::getKeyID($name);
 
-      if (!empty($this->_returnProperties[$name])) {
+      if (!empty($this->_paramLookup[$name]) || !empty($this->_returnProperties[$name])) {
         if ($cfID) {
           // add to cfIDs array if not present
           if (!array_key_exists($cfID, $this->_cfIDs)) {
             $this->_cfIDs[$cfID] = array();
           }
         }
-
         elseif (isset($field['where'])) {
           list($tableName, $fieldName) = explode('.', $field['where'], 2);
           if (isset($tableName)) {
             // also get the id of the tableName
-            $tName = substr($tableName, 8);
+            $this->_select[$name] = "$tableName.{$fieldName}  as `$name`";
+          }
+        }
+        else {
+          //dsm('volgende velden worden niet in select verwerkt');
+          //dsm($name);
+        }
 
-            if ($tName == 'relationship') {
-              if ($fieldName != 'id') {
-                $this->_select[$name] = "civicrm_relationship.{$fieldName}  as `$name`";
+        if ($cfID && !empty($field['is_search_range'])) {
+          // this is a custom field with range search enabled, so we better check for two/from values
+          if (!empty($this->_paramLookup[$name . '_from'])) {
+            if (!array_key_exists($cfID, $this->_cfIDs)) {
+              $this->_cfIDs[$cfID] = array();
+            }
+            foreach ($this->_paramLookup[$name . '_from'] as $pID => $p) {
+              // search in the cdID array for the same grouping
+              $fnd = FALSE;
+              foreach ($this->_cfIDs[$cfID] as $cID => $c) {
+                if ($c[3] == $p[3]) {
+                  $this->_cfIDs[$cfID][$cID][2]['from'] = $p[2];
+                  $fnd = TRUE;
+                }
+              }
+              if (!$fnd) {
+                $p[2] = array('from' => $p[2]);
+                $this->_cfIDs[$cfID][] = $p;
               }
             }
-            else {
-              $this->_select[$name] = "{$field['where']} as `$name`";
+          }
+          if (!empty($this->_paramLookup[$name . '_to'])) {
+            if (!array_key_exists($cfID, $this->_cfIDs)) {
+              $this->_cfIDs[$cfID] = array();
+            }
+            foreach ($this->_paramLookup[$name . '_to'] as $pID => $p) {
+              // search in the cdID array for the same grouping
+              $fnd = FALSE;
+              foreach ($this->_cfIDs[$cfID] as $cID => $c) {
+                if ($c[4] == $p[4]) {
+                  $this->_cfIDs[$cfID][$cID][2]['to'] = $p[2];
+                  $fnd = TRUE;
+                }
+              }
+              if (!$fnd) {
+                $p[2] = array('to' => $p[2]);
+                $this->_cfIDs[$cfID][] = $p;
+              }
             }
           }
         }
       }
-    }
-
-    if (!empty($this->_cfIDs)) {
-      $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs);
-      $this->_customQuery->query();
-      $this->_select = array_merge($this->_select, $this->_customQuery->_select);
-      $this->_element = array_merge($this->_element, $this->_customQuery->_element);
-      $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
-      $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
-      $this->_options = $this->_customQuery->_options;
+      if (!empty($this->_cfIDs)) {
+        $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs, TRUE, $this->_locationSpecificCustomFields);
+        $this->_customQuery->query();
+        $this->_select = array_merge($this->_select, $this->_customQuery->_select);
+        $this->_element = array_merge($this->_element, $this->_customQuery->_element);
+        $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
+        $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
+        $this->_options = $this->_customQuery->_options;
+      }
     }
   }
 
@@ -865,7 +937,7 @@ civicrm_relationship.start_date > {$today}
    * @return array
    *   sql query parts as an array
    */
-  public function query($count = FALSE, $sortByChar = FALSE, $groupRelationships = FALSE) {
+  public function query($count = FALSE, $groupRelationships = FALSE) {
     if ($count) {
       if (isset($this->_rowCountClause)) {
         $select = "SELECT {$this->_rowCountClause}";
@@ -877,7 +949,7 @@ civicrm_relationship.start_date > {$today}
         $select = "SELECT count( DISTINCT {$this->_distinctComponentClause} )";
       }
       else {
-        $select = 'SELECT count(DISTINCT civicrm_relationship.id) as rowCount';
+        $select = 'SELECT count(DISTINCT relationship.id) as rowCount';
       }
       $from = $this->_simpleFromClause;
       if ($this->_useDistinct) {
@@ -885,7 +957,7 @@ civicrm_relationship.start_date > {$today}
       }
     }
     elseif ($groupRelationships) {
-      $select = 'SELECT civicrm_relationship.id as id';
+      $select = 'SELECT relationship.id as id';
       if ($this->_useDistinct) {
         $this->_useGroupBy = TRUE;
       }
@@ -943,10 +1015,13 @@ civicrm_relationship.start_date > {$today}
    */
   public static function fromClause(&$tables, $inner = NULL, $right = NULL) {
 
-    $from = ' FROM civicrm_relationship';
+    $from = ' FROM civicrm_relationship relationship';
     if (empty($tables)) {
       return $from;
     }
+
+    // to handle table dependencies of components
+    CRM_Core_Component::tableNames($tables);
 
     //format the table list according to the weight
     $info = CRM_Core_TableHierarchy::info();
@@ -1003,15 +1078,19 @@ civicrm_relationship.start_date > {$today}
         }
         continue;
       }
+
       switch ($name) {
 
         case 'civicrm_relationship_type':
-          $from .= " $side JOIN civicrm_relationship_type relationship_type ON civicrm_relationship.relationship_type_id = relationship_type.id ";
+          $from .= " $side JOIN civicrm_relationship_type relationship_type ON relationship.relationship_type_id = relationship_type.id ";
           continue;
 
-        case 'civicrm_contact':
-          $from .= " $side JOIN civicrm_contact contact_a ON civicrm_relationship.contact_id_a = contact_a.id ";
-          $from .= " $side JOIN civicrm_contact contact_b ON civicrm_relationship.contact_id_b = contact_b.id ";
+        case 'contact_a':
+          $from .= " $side JOIN civicrm_contact contact_a ON relationship.contact_id_a = contact_a.id ";
+          continue;
+
+        case 'contact_b':
+          $from .= " $side JOIN civicrm_contact contact_b ON relationship.contact_id_b = contact_b.id ";
           continue;
       }
     }

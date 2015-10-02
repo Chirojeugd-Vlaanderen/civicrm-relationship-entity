@@ -205,63 +205,6 @@ class CRM_Relationship_Selector_Search extends CRM_Core_Selector_Base implements
   }
 
   /**
-   * Returns all the rows in the given offset and rowCount.
-   *
-   * @param string $action
-   *   The action being performed.
-   * @param int $offset
-   *   The row number to start from.
-   * @param int $rowCount
-   *   The number of rows to return.
-   * @param string $sort
-   *   The sql string that describes the sort order.
-   * @param string $output
-   *   What should the result set include (web/email/csv).
-   *
-   * @return int
-   *   the total number of rows for this action
-   */
-  public function &getRows($action, $offset, $rowCount, $sort, $output = NULL) {
-    $result = $this->_query->searchQuery($offset, $rowCount, $sort, FALSE, FALSE, FALSE, FALSE, $this->_relationshipClause
-    );
-
-    // process the result of the query
-    $rows = array();
-
-    //CRM-4418 check for view, edit, delete
-    $permissions = array(CRM_Core_Permission::VIEW);
-    if (CRM_Core_Permission::check('edit all contacts')) {
-      $permissions[] = CRM_Core_Permission::EDIT;
-    }
-    if (CRM_Core_Permission::check('delete contacts')) {
-      $permissions[] = CRM_Core_Permission::DELETE;
-    }
-    $mask = CRM_Core_Action::mask($permissions);
-
-    while ($result->fetch()) {
-      $row = array();
-
-      // the columns we are interested in
-      foreach (self::$_properties as $property) {
-        if (property_exists($result, $property)) {
-          $row[$property] = $result->$property;
-        }
-      }
-
-      $row['checkbox'] = CRM_Core_Form::CB_PREFIX . $result->relationship_id;
-
-      $row['action'] = CRM_Core_Action::formLink(
-        self::links(), $mask, array(
-          'id' => $result->relationship_id,
-          'cid' => $result->contact_id_a,), ts('more'), FALSE, 'relationship.selector.row', 'Relationship', $result->relationship_id
-      );
-       
-      $rows[] = $row;
-    }
-    return $rows;
-  }
-
-  /**
    * This method returns the links that are given for each search row.
    * currently the links added for each row are
    *
