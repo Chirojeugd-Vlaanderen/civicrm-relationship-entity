@@ -85,7 +85,7 @@
        * Loads snippet based on id of crm-accordion-header
        */
       function loadPanes(id) {
-        var url = "{/literal}{crmURL p='civicrm/contact/search/advanced' q="qfKey=`$qfKey`&searchPane=" h=0}{literal}" + id;
+        var url = "{/literal}{crmURL p='civicrm/rel/search' q="qfKey=`$qfKey`&searchPane=" h=0}{literal}" + id;
         var header = $('#' + id);
         var body = $('.crm-accordion-body.' + id);
         if (header.length > 0 && body.length > 0 && !body.html()) {

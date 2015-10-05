@@ -59,6 +59,38 @@ class CRM_Relationship_Form_Search_Criteria {
   }
 
   /**
+   * Generate the custom Data Fields based
+   * on the is_searchable
+   *
+   *
+   * @param $form
+   *
+   * @return void
+   */
+  public static function custom(&$form) {
+    $form->add('hidden', 'hidden_custom', 1);
+    $extends = array('Relationship');
+    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends
+    );
+
+    $form->assign('groupTree', $groupDetails);
+
+    foreach ($groupDetails as $key => $group) {
+      $_groupTitle[$key] = $group['name'];
+      CRM_Core_ShowHideBlocks::links($form, $group['name'], '', '');
+
+      $groupId = $group['id'];
+      foreach ($group['fields'] as $field) {
+        $fieldId = $field['id'];
+        $elementName = 'custom_' . $fieldId;
+
+        CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $fieldId, FALSE, FALSE, TRUE
+        );
+      }
+    }
+  }
+
+  /**
    * @param CRM_Core_Form $form
    */
   public static function contact_a(&$form) {
