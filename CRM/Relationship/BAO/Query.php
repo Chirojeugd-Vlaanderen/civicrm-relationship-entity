@@ -916,15 +916,20 @@ relationship.start_date > {$today}
           }
         }
       }
-      if (!empty($this->_cfIDs)) {
-        $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs, TRUE, $this->_locationSpecificCustomFields);
-        $this->_customQuery->query();
-        $this->_select = array_merge($this->_select, $this->_customQuery->_select);
-        $this->_element = array_merge($this->_element, $this->_customQuery->_element);
-        $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
-        $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
-        $this->_options = $this->_customQuery->_options;
-      }
+    }
+    if (!empty($this->_cfIDs)) {
+      $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs);
+      $this->_customQuery->query();
+      // Customquery hardcodes te relationship table to civicrm_relationship
+      // We call this relationship, so we need to change this.
+      $this->_customQuery->_tables = str_replace('civicrm_relationship', 'relationship', $this->_customQuery->_tables);
+      $this->_customQuery->_whereTables = str_replace('civicrm_relationship', 'relationship', $this->_customQuery->_whereTables);
+
+      $this->_select = array_merge($this->_select, $this->_customQuery->_select);
+      $this->_element = array_merge($this->_element, $this->_customQuery->_element);
+      $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
+      $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
+      $this->_options = $this->_customQuery->_options;
     }
   }
 
