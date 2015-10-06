@@ -454,7 +454,7 @@ class CRM_Relationship_Form_Search extends CRM_Core_Form_Search {
 
     CRM_Core_BAO_CustomValue::fixCustomFieldValue($this->_formValues);
 
-    $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+    $this->_params = CRM_Relationship_BAO_Query::convertFormValues($this->_formValues);
     $this->_returnProperties = &$this->returnProperties();
 
 

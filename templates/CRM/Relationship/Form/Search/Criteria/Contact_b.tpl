@@ -26,11 +26,11 @@
 <table class="form-layout">
   <tr>
     <td><label>{ts}Complete OR Partial Name{/ts}</label><br />
-      {$form.sort_name_b.html}
+      {$form.contact_b_sort_name.html}
     </td>
     <td>
       <label>{ts}Complete OR Partial Email{/ts}</label><br />
-      {$form.email_b.html}
+      {$form.contact_b_email.html}
     </td>
     <td class="adv-search-top-submit" colspan="2">
       <div class="crm-submit-buttons">
@@ -39,9 +39,9 @@
     </td>
   </tr>
   <tr>
-    {if $form.contact_type_b}
+    {if $form.contact_b_contact_type}
       <td><label>{ts}Contact Type(s){/ts}</label><br />
-        {$form.contact_type_b.html}
+        {$form.contact_b_contact_type.html}
       </td>
     {else}
       <td>&nbsp;</td>
@@ -49,55 +49,55 @@
   <tr>
     <td>
       <div>
-        {$form.phone_numeric_b.label}<br />{$form.phone_numeric_b.html}
+        {$form.contact_b_phone_numeric.label}<br />{$form.contact_b_phone_numeric.html}
       </div>
       <div class="description font-italic">
         {ts}Punctuation and spaces are ignored.{/ts}
       </div>
     </td>
-    <td>{$form.phone_location_type_id_b.label}<br />{$form.phone_location_type_id_b.html}</td>
-    <td>{$form.phone_phone_type_id_b.label}<br />{$form.phone_phone_type_id_b.html}</td>
+    <td>{$form.contact_b_phone_location_type_id.label}<br />{$form.contact_b_phone_location_type_id.html}</td>
+    <td>{$form.contact_b_phone_phone_type_id.label}<br />{$form.contact_b_phone_phone_type_id.html}</td>
   </tr>
   <tr>
     <td colspan="2">
       <table class="form-layout-compressed">
         <tr>
           <td colspan="2">
-            {$form.privacy_toggle_b.html} {help id="id-privacy"}
+            {$form.contact_b_privacy_toggle.html} {help id="id-privacy"}
           </td>
         </tr>
         <tr>
           <td>
-            {$form.privacy_options_b.html}
+            {$form.contact_b_privacy_options.html}
           </td>
           <td style="vertical-align:middle">
-            <div id="privacy-operator-wrapper_b">{$form.privacy_operator_b.html} {help id="privacy-operator"}</div>
+            <div id="privacy-operator-wrapper_a">{$form.contact_b_privacy_operator.html} {help id="privacy-operator"}</div>
           </td>
         </tr>
       </table>
       {literal}
         <script type="text/javascript">
-          cj("select#privacy_options_b").change(function () {
+          cj("select#contact_b_privacy_options").change(function () {
             if (cj(this).val() && cj(this).val().length > 1) {
-              cj('#privacy-operator-wrapper_b').show();
+              cj('#contact_b_privacy-operator-wrapper').show();
             } else {
-              cj('#privacy-operator-wrapper_b').hide();
+              cj('#contact_b_privacy-operator-wrapper').hide();
             }
           }).change();
         </script>
       {/literal}
     </td>
     <td colspan="3">
-      {$form.preferred_communication_method_b.label}<br />
-      {$form.preferred_communication_method_b.html}<br />
+      {$form.contact_b_preferred_communication_method.label}<br />
+      {$form.contact_b_preferred_communication_method.html}<br />
       <div class="spacer"></div>
-      {$form.email_on_hold_b.html} {$form.email_on_hold_b.label}
+      {$form.contact_b_email_on_hold.html} {$form.contact_b_email_on_hold.label}
     </td>
   </tr>
   <tr>
     <td>
-      {if $form.uf_user_b}
-        {$form.uf_user_b.label} {$form.uf_user_b.html}
+      {if $form.contact_b_uf_user}
+        {$form.contact_b_uf_user.label} {$form.contact_b_uf_user.html}
         <div class="description font-italic">
           {ts 1=$config->userFramework}Does the contact have a %1 Account?{/ts}
         </div>
@@ -106,18 +106,18 @@
       {/if}
     </td>
     <td>
-      {$form.job_title_b.label}<br />
-      {$form.job_title_b.html}
+      {$form.contact_b_job_title.label}<br />
+      {$form.contact_b_job_title.html}
     </td>
   </tr>
   <tr>
     <td>
-      {$form.contact_id_b.label} {help id="id-internal-id" file="CRM/Contact/Form/Contact"}<br />
-      {$form.contact_id_b.html}
+      {$form.contact_b_contact_id.label} {help id="id-internal-id" file="CRM/Contact/Form/Contact"}<br />
+      {$form.contact_b_contact_id.html}
     </td>
     <td>
-      {$form.external_identifier_b.label} {help id="id-external-id" file="CRM/Contact/Form/Contact"}<br />
-      {$form.external_identifier_b.html}
+      {$form.contact_b_external_identifier.label} {help id="id-external-id" file="CRM/Contact/Form/Contact"}<br />
+      {$form.contact_b_external_identifier.html}
     </td>
   </tr>
   {if $contactGroupTree}
