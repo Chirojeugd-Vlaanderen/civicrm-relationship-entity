@@ -138,7 +138,7 @@ class CRM_Relationship_Selector extends CRM_Core_Selector_Base implements CRM_Co
    * @param string $searchContext
    * @param null $contextMenu
    *
-   * @return CRM_Contact_Selector
+   * @return CRM_Relationship_Selector
    */
   public function __construct(
     $customSearchClass,

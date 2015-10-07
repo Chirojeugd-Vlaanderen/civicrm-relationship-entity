@@ -80,7 +80,7 @@ class CRM_Relationship_Export_Form_Select extends CRM_Export_Form_Select {
     $this->assign('taskName', $taskName);
     $this->assign('component', $component);
     // all records actions = save a search
-    if (($values['radio_ts'] == 'ts_all') || ($this->_task == CRM_Contact_Task::SAVE_SEARCH)) {
+    if (($values['radio_ts'] == 'ts_all')) {
       $this->_selectAll = TRUE;
       $rowCount = $this->get('rowCount');
       if ($rowCount > 2) {

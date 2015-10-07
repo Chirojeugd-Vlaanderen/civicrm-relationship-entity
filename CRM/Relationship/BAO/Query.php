@@ -498,56 +498,139 @@ class CRM_Relationship_BAO_Query {
     }
     list($name, $op, $value, $grouping, $wildcard) = $values;
     switch ($name) {
+      case 'relationship_type_id':
+        $this->relationshipType($values);
+        return;
+
       case 'is_active':
-        $today = date('Ymd');
-        if ($value == 0) {
-          $this->_where[$grouping][] = "(
+        $this->isActive($values);
+        return;
+
+      case 'start_date_low':
+      case 'start_date_high':
+      case 'end_date_low':
+      case 'end_date_high':
+        $this->relationshipDate($values);
+        return;
+
+      case 'target_name':
+        $this->targetName($values);
+        return;
+
+      default:
+        //dsm("TODO / IGNORE: where clause voor $name");
+        return;
+    }
+  }
+
+  /**
+   * Where / qill clause for start & end date criteria of relationship
+   * @param string $grouping
+   * @param array $where
+   *   = array to add where clauses to, in case you are generating a temp table.
+   * not the main query.
+   */
+  public function relationshipDate(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    //start dates
+    if (substr($name, 0, strlen('start')) === 'start') {
+      if (substr($name, -strlen('low')) === 'low') {
+        $this->_where[$grouping][] = "(relationship.start_date >= date({$value}))";
+        $this->_qill[$grouping][] = ts('Relationship Start Date On or After ') . CRM_Utils_Date::customFormat($value);
+      }
+      elseif (substr($name, -strlen('high')) === 'high') {
+        $this->_where[$grouping][] = "(relationship.start_date <=  date({$value}))";
+        $this->_qill[$grouping][] = ts('Relationship Start Date Before or On ') . CRM_Utils_Date::customFormat($value);
+      }
+    }
+    if (substr($name, 0, strlen('end')) === 'end') {
+      if (substr($name, -strlen('low')) === 'low') {
+        $this->_where[$grouping][] = "(relationship.end_date >=  date({$value}))";
+        $this->_qill[$grouping][] = ts('Relationship End Date On or After ') . CRM_Utils_Date::customFormat($value);
+      }
+      elseif (substr($name, -strlen('high')) === 'high') {
+        $this->_where[$grouping][] = "(relationship.end_date <=  date({$value}))";
+        $this->_qill[$grouping][] = ts('Relationship End Date Before or On ') . CRM_Utils_Date::customFormat($value);
+      }
+    }
+  }
+
+  /**
+   * Where / qill clause for is_active
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function isActive(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $today = date('Ymd');
+    if ($value == 0) {
+      $this->_where[$grouping][] = "(
 relationship.is_active = 1 AND
 ( relationship.end_date IS NULL OR relationship.end_date >= {$today} ) AND
 ( relationship.start_date IS NULL OR relationship.start_date <= {$today} )
 )";
-        }
-        elseif ($value == 1) {
-          $this->_where[$grouping][] = "(
+      $this->_qill[$grouping][] = ts('Relationship - Active and Current');
+    }
+    elseif ($value == 1) {
+      $this->_where[$grouping][] = "(
 relationship.is_active = 0 OR
 relationship.end_date < {$today} OR
 relationship.start_date > {$today}
 )";
-        }
-        return;
-
-      case 'relationship_type_id':
-        $relationship_type_ids = array();
-        foreach ($value as $key => $relationship_type_value) {
-          // we gebruiken de key om relaties in 2 richtingen op te vangen.
-          $relationship_type_ids[substr_replace($relationship_type_value, "", -4)] = substr_replace($relationship_type_value, "", -4);
-        }
-        $relationship_type_ids_string = implode("', '", $relationship_type_ids);
-        $this->_where[$grouping][] = "relationship.relationship_type_id in (' $relationship_type_ids_string  ')";
-        return;
-
-      case 'target_name':
-
-        $target_name = trim($value);
-        if (substr($target_name, 0, 1) == '"' &&
-            substr($target_name, -1, 1) == '"'
-        ) {
-          $target_name = substr($target_name, 1, -1);
-          $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
-          $this->_where[$grouping][] = "(contact_a.display_name = '$target_name' or contact_b.display_name = '$target_name')";
-        }
-        else {
-          $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
-          $this->_where[$grouping][] = "(contact_a.display_name LIKE '%{$target_name}%' or contact_b.display_name LIKE '%{$target_name}%')";
-        }
-
-        return;
-
-      default:
-        //Doe niets bij niet ondersteunde parameter.
-        //$this->restWhere($values);
-        return;
+      $this->_qill[$grouping][] = ts('Relationship - Inactive or not Current');
     }
+  }
+
+  /**
+   * Where / qill clause for target_name
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function targetName(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $target_name = trim($value);
+    if (substr($target_name, 0, 1) == '"' &&
+        substr($target_name, -1, 1) == '"'
+    ) {
+      $target_name = substr($target_name, 1, -1);
+      $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
+      $this->_where[$grouping][] = "(contact_a.display_name = '$target_name' or contact_b.display_name = '$target_name')";
+    }
+    else {
+      $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
+      $this->_where[$grouping][] = "(contact_a.display_name LIKE '{$target_name}%' or contact_b.display_name LIKE '{$target_name}%')";
+    }
+    $this->_qill[$grouping][] = ts('Contact name is ') . $value;
+  }
+
+  /**
+   * Where / qill clause for relationship_type
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function relationshipType(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $clause = array();
+
+    foreach ($value as $k => $relationship_type_value) {
+      // we gebruiken de key om relaties in 2 richtingen op te vangen.
+      $relationship_type_id = substr_replace($relationship_type_value, "", -4);
+      $relationship_type_params = array('id' => $relationship_type_id);
+      CRM_Contact_BAO_RelationshipType::retrieve($relationship_type_params, $relationship_type);
+      $clause[$relationship_type['label_a_b']] = $relationship_type_id;
+    }
+
+    $this->_where[$grouping][] = "relationship.relationship_type_id $op ('" . implode("', '", $clause) . "')";
+    $this->_qill[$grouping][] = ts('Relationship Type') . " $op " . implode(' ' . ts('or') . ' ', array_keys($clause));
   }
 
   /**
@@ -574,7 +657,7 @@ relationship.start_date > {$today}
           $toRange = 'start_date_high';
         }
         elseif ($id == 'end_date_relative') {
-          $fromRange = 'relationship_end_date_low';
+          $fromRange = 'end_date_low';
           $toRange = 'end_date_high';
         }
         
@@ -651,9 +734,7 @@ relationship.start_date > {$today}
     elseif (is_string($values) && strpos($values, '%') !== FALSE) {
       $result = array($id, 'LIKE', $values, 0, 0);
     }
-    elseif ($id == 'relationship_type_id' ||
-        (!empty($values) && is_array($values) && !in_array(key($values), CRM_Core_DAO::acceptedSQLOperators(), TRUE))
-    ) {
+    elseif ($id == 'relationship_type_id') {
       $result = array($id, 'IN', $values, 0, $wildcard);
     }
     else {
@@ -1086,6 +1167,9 @@ relationship.start_date > {$today}
 
       switch ($name) {
 
+        case 'civicrm_relationship':
+          continue;
+
         case 'civicrm_relationship_type':
           $from .= " $side JOIN civicrm_relationship_type relationship_type ON relationship.relationship_type_id = relationship_type.id ";
           continue;
@@ -1096,6 +1180,10 @@ relationship.start_date > {$today}
 
         case 'contact_b':
           $from .= " $side JOIN civicrm_contact contact_b ON relationship.contact_id_b = contact_b.id ";
+          continue;
+
+        default;
+          //dsm("TODO: form clause moet nog geïmplementeerd worden voor $name");
           continue;
       }
     }

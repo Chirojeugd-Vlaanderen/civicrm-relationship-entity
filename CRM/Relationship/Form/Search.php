@@ -147,7 +147,8 @@ class CRM_Relationship_Form_Search extends CRM_Core_Form_Search {
     if (!empty($_POST)) {
       $this->_formValues = $this->controller->exportValues($this->_name);
       $this->normalizeFormValues();
-      $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+      $this->_params = CRM_Relationship_BAO_Query::convertFormValues($this->_formValues);
+      ;
       $this->_returnProperties = &$this->returnProperties();
 
       // also get the object mode directly from the post value
