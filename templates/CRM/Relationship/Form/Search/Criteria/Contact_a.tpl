@@ -58,59 +58,101 @@
     <td>{$form.contact_a_phone_location_type_id.label}<br />{$form.contact_a_phone_location_type_id.html}</td>
     <td>{$form.contact_a_phone_phone_type_id.label}<br />{$form.contact_a_phone_phone_type_id.html}</td>
   </tr>
-  <tr>
-    <td colspan="2">
-      <table class="form-layout-compressed">
-      <tr>
-        <td colspan="2">
-          {$form.contact_a_privacy_toggle.html} {help id="id-privacy"}
-        </td>
-      </tr>
-      <tr>
-        <td>
-          {$form.contact_a_privacy_options.html}
-        </td>
-        <td style="vertical-align:middle">
-          <div id="privacy-operator-wrapper_a">{$form.contact_a_privacy_operator.html} {help id="privacy-operator"}</div>
-        </td>
-      </tr>
-      </table>
-      {literal}
-        <script type="text/javascript">
-          cj("select#contact_a_privacy_options").change(function() {
-            if (cj(this).val() && cj(this).val().length > 1) {
-              cj('#contact_a_privacy-operator-wrapper').show();
-            } else {
-              cj('#contact_a_privacy-operator-wrapper').hide();
-            }
-          }).change();
-        </script>
-      {/literal}
-    </td>
-    <td colspan="3">
-      {$form.contact_a_preferred_communication_method.label}<br />
-      {$form.contact_a_preferred_communication_method.html}<br />
-      <div class="spacer"></div>
-      {$form.contact_a_email_on_hold.html} {$form.contact_a_email_on_hold.label}
-    </td>
-  </tr>
+
   <tr>
     <td>
-      {if $form.contact_a_uf_user}
-        {$form.contact_a_uf_user.label} {$form.contact_a_uf_user.html}
-        <div class="description font-italic">
-              {ts 1=$config->userFramework}Does the contact have a %1 Account?{/ts}
+      <div id="contact_a_streetAddress" class="crm-field-wrapper">
+        {$form.contact_a_street_address.label}<br />
+        {$form.contact_a_street_address.html|crmAddClass:big}
+      </div>
+         
+      <div class="crm-field-wrapper">
+        {$form.contact_a_city.label}<br />
+        {$form.contact_a_city.html}
+      </div>
+    </td>
+
+    <td>
+      <div class="crm-field-wrapper">
+        <div>{$form.contact_a_location_type.label} {help id="location_type" title=$form.location_type.label}</div>
+        {$form.contact_a_location_type.html}
+      </div>
+      {if $form.contact_a_postal_code.html}
+        <div class="crm-field-wrapper">
+          {$form.contact_a_postal_code.label}
+          <input type="checkbox" id="contact_a_postal-code-range-toggle" value="1"/>
+          <label for="contact_a_postal-code-range-toggle">{ts}Range{/ts}</label><br />
+          <div class="contact_a_postal_code-wrapper">
+            {$form.contact_a_postal_code.html}
           </div>
-      {else}
-          &nbsp;
+          <div class="contact_a_postal_code_range-wrapper" style="display: none;">
+              {$form.contact_a_postal_code_low.html}&nbsp;-&nbsp;{$form.contact_a_postal_code_high.html}
+          </div>
+        </div>
+        <script type="text/javascript">
+          {literal}
+          CRM.$(function($) {
+            $('#contact_a_postal-code-range-toggle').change(function() {
+              if ($(this).is(':checked')) {
+                $('.contact_a_postal_code_range-wrapper').show();
+                $('.contact_a_postal_code-wrapper').hide().find('input').val('');
+              } else {
+                $('.contact_a_postal_code-wrapper').show();
+                $('.contact_a_postal_code_range-wrapper').hide().find('input').val('');
+              }
+            });
+          if ($('#contact_a_postal_code_low').val() || $('#contact_a_postal_code_high').val()) {
+              $('#contact_a_postal-code-range-toggle').prop('checked', true).change();
+            }
+          });
+          {/literal}
+        </script>
       {/if}
     </td>
+  </tr>
+
+  {if $addressGroupTree}
+    <tr>
+      <td colspan="2">
+        {include file="CRM/Custom/Form/Search.tpl" groupTree=$addressGroupTree showHideLinks=false}
+      </td>
+    </tr>
+  {/if}
+
+  <tr>
+  <tr>
     <td>
-      {$form.contact_a_job_title.label}<br />
-      {$form.contact_a_job_title.html}
+      <label>{ts}Birth Dates{/ts}</label>
     </td>
   </tr>
-  <tr>
+  {include file="CRM/Core/DateRange.tpl" fieldName="contact_a_birth_date" from='_low' to='_high'}
+</tr>
+<tr>
+  <td>
+    {$form.contact_a_is_deceased.label}<br />
+    {$form.contact_a_is_deceased.html}
+  </td>
+</tr>
+<tr>
+<tr>
+  <td>
+    <label>{ts}Deceased Dates{/ts}</label>
+  </td>
+</tr>
+{include file="CRM/Core/DateRange.tpl" fieldName="contact_a_deceased_date" from='_low' to='_high'}
+</tr>
+<tr>
+  <td>
+    {$form.contact_a_gender_id.label}<br />
+    {$form.contact_a_gender_id.html}
+  </td>
+</tr>
+
+<tr>
+  <td>
+    {$form.contact_a_job_title.label}<br />
+      {$form.contact_a_job_title.html}
+    </td>
     <td>
       {$form.contact_a_contact_id.label} {help id="id-internal-id" file="CRM/Contact/Form/Contact"}<br />
       {$form.contact_a_contact_id.html}

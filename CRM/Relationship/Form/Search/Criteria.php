@@ -125,48 +125,6 @@ class CRM_Relationship_Form_Search_Criteria {
     //added external ID
     $form->addElement('text', 'contact_a_external_identifier', ts('External ID'), CRM_Core_DAO::getAttribute('CRM_Contact_DAO_Contact', 'external_identifier'));
 
-    // add checkbox for cms users only
-    $form->addYesNo('contact_a_uf_user', ts('CMS User?'), TRUE);
-
-    // checkboxes for DO NOT phone, email, mail
-    // we take labels from SelectValues
-    $t = CRM_Core_SelectValues::privacy();
-    $form->add('select',
-      'contact_a_privacy_options', ts('Privacy'), $t,
-      FALSE,
-      array(
-        'id' => 'contact_a_privacy_options',
-      'multiple' => 'multiple',
-        'class' => 'crm-select2',
-      )
-    );
-
-    $form->addElement('select',
-      'contact_a_privacy_operator', ts('Operator'), array(
-        'OR' => ts('OR'),
-        'AND' => ts('AND'),
-      )
-    );
-
-    $options = array(
-      1 => ts('Exclude'),
-      2 => ts('Include by Privacy Option(s)'),
-    );
-    $form->addRadio('contact_a_privacy_toggle', ts('Privacy Options'), $options, array('allowClear' => FALSE));
-
-    // preferred communication method
-    $comm = CRM_Core_PseudoConstant::get('CRM_Contact_DAO_Contact', 'preferred_communication_method');
-
-    $commPreff = array();
-    foreach ($comm as $k => $v) {
-      $commPreff[] = $form->createElement('advcheckbox', 'contact_a_' . $k, NULL, $v);
-    }
-
-    $onHold[] = $form->createElement('advcheckbox', 'contact_a_on_hold', NULL, '');
-    $form->addGroup($onHold, 'contact_a_email_on_hold', ts('Email On Hold'));
-
-    $form->addGroup($commPreff, 'contact_a_preferred_communication_method', ts('Preferred Communication Method'));
-
     // Phone search
     $form->addElement('text', 'contact_a_phone_numeric', ts('Phone Number'), CRM_Core_DAO::getAttribute('CRM_Core_DAO_Phone', 'phone'));
     $locationType = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Address', 'location_type_id');
@@ -175,7 +133,7 @@ class CRM_Relationship_Form_Search_Criteria {
     $form->add('select', 'contact_a_phone_phone_type_id', ts('Phone Type'), array('' => ts('- any -')) + $phoneType, FALSE, array('class' => 'crm-select2'));
 
     // add all the custom  searchable fields
-    $contact = array('Individual');
+    $contact = array('Individual', 'Household', 'Organization');
     $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $contact);
     if ($groupDetails) {
       $form->assign('contactGroupTree', $groupDetails);
@@ -188,6 +146,54 @@ class CRM_Relationship_Form_Search_Criteria {
         }
       }
     }
+
+    // Add address fields
+    $attributes = CRM_Core_DAO::getAttribute('CRM_Core_DAO_Address');
+
+    $form->addElement('text', 'contact_a_street_address', ts('Street Address'), $attributes['street_address']);
+    $form->addElement('text', 'contact_a_city', ts('City'), $attributes['city']);
+    $form->addElement('text', 'contact_a_postal_code', ts('Zip / Postal Code'), $attributes['postal_code']);
+    $form->addElement('text', 'contact_a_postal_code_low', NULL, $attributes['postal_code'] + array('placeholder' => ts('From')));
+    $form->addElement('text', 'contact_a_postal_code_high', NULL, $attributes['postal_code'] + array('placeholder' => ts('To')));
+
+    // select for location type
+    $locationType = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Address', 'location_type_id');
+    $form->add('select', 'contact_a_location_type', ts('Address Location'), $locationType, FALSE, array(
+      'multiple' => TRUE,
+      'class' => 'crm-select2',
+      'placeholder' => ts('Primary'),
+    ));
+
+    // custom data extending addresses -
+    $extends = array('Address');
+    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends);
+    if ($groupDetails) {
+      $form->assign('addressGroupTree', $groupDetails);
+      foreach ($groupDetails as $group) {
+        foreach ($group['fields'] as $field) {
+          $elementName = 'custom_' . $field['id'];
+          CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $field['id'], FALSE, FALSE, TRUE
+          );
+        }
+      }
+    }
+
+    // Add demographics
+    // radio button for gender
+    $genderOptions = array();
+    $gender = CRM_Core_PseudoConstant::get('CRM_Contact_DAO_Contact', 'gender_id');
+    foreach ($gender as $key => $var) {
+      $genderOptions[$key] = $form->createElement('radio', NULL, ts('Gender'), $var, $key, array('id' => "civicrm_gender_{$var}_{$key}")
+      );
+    }
+    $form->addGroup($genderOptions, 'contact_a_gender_id', ts('Gender'))->setAttribute('allowClear', TRUE);
+
+    CRM_Core_Form_Date::buildDateRange($form, 'contact_a_birth_date', 1, '_low', '_high', ts('From'), FALSE, FALSE, 'birth');
+
+    CRM_Core_Form_Date::buildDateRange($form, 'contact_a_deceased_date', 1, '_low', '_high', ts('From'), FALSE, FALSE, 'birth');
+
+    // radio button for is_deceased
+    $form->addYesNo('contact_a_is_deceased', ts('Deceased'), TRUE);
   }
 
  /**
@@ -224,44 +230,6 @@ class CRM_Relationship_Form_Search_Criteria {
     //added external ID
     $form->addElement('text', 'contact_b_external_identifier', ts('External ID'), CRM_Core_DAO::getAttribute('CRM_Contact_DAO_Contact', 'external_identifier'));
 
-    // add checkbox for cms users only
-    $form->addYesNo('contact_b_uf_user', ts('CMS User?'), TRUE);
-
-    // checkboxes for DO NOT phone, email, mail
-    // we take labels from SelectValues
-    $t = CRM_Core_SelectValues::privacy();
-    $form->add('select', 'contact_b_privacy_options', ts('Privacy'), $t, FALSE, array(
-      'id' => 'contact_b_privacy_options',
-      'multiple' => 'multiple',
-      'class' => 'crm-select2',
-        )
-    );
-
-    $form->addElement('select', 'contact_b_privacy_operator', ts('Operator'), array(
-      'OR' => ts('OR'),
-      'AND' => ts('AND'),
-        )
-    );
-
-    $options = array(
-      1 => ts('Exclude'),
-      2 => ts('Include by Privacy Option(s)'),
-    );
-    $form->addRadio('contact_b_privacy_toggle', ts('Privacy Options'), $options, array('allowClear' => FALSE));
-
-    // preferred communication method
-    $comm = CRM_Core_PseudoConstant::get('CRM_Contact_DAO_Contact', 'preferred_communication_method');
-
-    $commPreff = array();
-    foreach ($comm as $k => $v) {
-      $commPreff[] = $form->createElement('advcheckbox', 'contact_b_' . $k, NULL, $v);
-    }
-
-    $onHold[] = $form->createElement('advcheckbox', 'contact_b_on_hold', NULL, '');
-    $form->addGroup($onHold, 'contact_b_email_on_hold', ts('Email On Hold'));
-
-    $form->addGroup($commPreff, 'contact_b_preferred_communication_method', ts('Preferred Communication Method'));
-
     // Phone search
     $form->addElement('text', 'contact_b_phone_numeric', ts('Phone Number'), CRM_Core_DAO::getAttribute('CRM_Core_DAO_Phone', 'phone'));
     $locationType = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Address', 'location_type_id');
@@ -270,7 +238,7 @@ class CRM_Relationship_Form_Search_Criteria {
     $form->add('select', 'contact_b_phone_phone_type_id', ts('Phone Type'), array('' => ts('- any -')) + $phoneType, FALSE, array('class' => 'crm-select2'));
 
     // add all the custom  searchable fields
-    $contact = array('Organization');
+    $contact = array('Individual', 'Household', 'Organization');
     $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $contact);
     if ($groupDetails) {
       $form->assign('contactGroupTree', $groupDetails);
@@ -283,6 +251,54 @@ class CRM_Relationship_Form_Search_Criteria {
         }
       }
     }
+
+    // Add address fields
+    $attributes = CRM_Core_DAO::getAttribute('CRM_Core_DAO_Address');
+
+    $form->addElement('text', 'contact_b_street_address', ts('Street Address'), $attributes['street_address']);
+    $form->addElement('text', 'contact_b_city', ts('City'), $attributes['city']);
+    $form->addElement('text', 'contact_b_postal_code', ts('Zip / Postal Code'), $attributes['postal_code']);
+    $form->addElement('text', 'contact_b_postal_code_low', NULL, $attributes['postal_code'] + array('placeholder' => ts('From')));
+    $form->addElement('text', 'contact_b_postal_code_high', NULL, $attributes['postal_code'] + array('placeholder' => ts('To')));
+
+    // select for location type
+    $locationType = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Address', 'location_type_id');
+    $form->add('select', 'contact_b_location_type', ts('Address Location'), $locationType, FALSE, array(
+      'multiple' => TRUE,
+      'class' => 'crm-select2',
+      'placeholder' => ts('Primary'),
+    ));
+
+    // custom data extending addresses -
+    $extends = array('Address');
+    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends);
+    if ($groupDetails) {
+      $form->assign('addressGroupTree', $groupDetails);
+      foreach ($groupDetails as $group) {
+        foreach ($group['fields'] as $field) {
+          $elementName = 'custom_' . $field['id'];
+          CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $field['id'], FALSE, FALSE, TRUE
+          );
+        }
+      }
+    }
+
+    // Add demographics
+    // radio button for gender
+    $genderOptions = array();
+    $gender = CRM_Core_PseudoConstant::get('CRM_Contact_DAO_Contact', 'gender_id');
+    foreach ($gender as $key => $var) {
+      $genderOptions[$key] = $form->createElement('radio', NULL, ts('Gender'), $var, $key, array('id' => "civicrm_gender_{$var}_{$key}")
+      );
+    }
+    $form->addGroup($genderOptions, 'contact_b_gender_id', ts('Gender'))->setAttribute('allowClear', TRUE);
+
+    CRM_Core_Form_Date::buildDateRange($form, 'contact_b_birth_date', 1, '_low', '_high', ts('From'), FALSE, FALSE, 'birth');
+
+    CRM_Core_Form_Date::buildDateRange($form, 'contact_b_deceased_date', 1, '_low', '_high', ts('From'), FALSE, FALSE, 'birth');
+
+    // radio button for is_deceased
+    $form->addYesNo('contact_b_is_deceased', ts('Deceased'), TRUE);
   }
 
 }
