@@ -26,7 +26,7 @@
 <table class="form-layout">
   <tr>
     <td><label>{ts}Complete OR Partial Name{/ts}</label><br />
-      {$form.contact_a_sort_name.html}
+      {$form.contact_a_display_name.html}
     </td>
     <td>
       <label>{ts}Complete OR Partial Email{/ts}</label><br />

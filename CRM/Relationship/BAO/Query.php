@@ -517,14 +517,94 @@ class CRM_Relationship_BAO_Query {
         $this->targetName($values);
         return;
 
+      case 'contact_a_display_name':
+      case 'contact_b_display_name':
+        $this->contactDisplayName($values);
+        return;
+
+      case 'contact_a_email':
+      case 'contact_b_email':
+        $this->email($values);
+        return;
+
       case 'entryURL':
-        $this->targetName($values);
         return;
 
       default:
-        //dsm("TODO / IGNORE: where clause voor $name");
+        dsm("TODO / IGNORE: where clause voor $name");
         return;
     }
+  }
+
+  /**
+   * Where / qill clause for email
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function email(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $value = trim($value);
+    if (substr($value, 0, 1) == '"' &&
+        substr($value, -1, 1) == '"'
+    ) {
+      $op = '=';
+      $value = substr($value, 1, -1);
+    }
+    else {
+      $op = 'LIKE';
+    }
+
+    $value = '"' . strtolower(CRM_Core_DAO::escapeString(trim($value))) . '%"';
+
+    $this->_qill[$grouping][] = ts('Email') . " $op '$value'";
+    if ($name == 'contact_a_email') {
+      $this->_where[$grouping][] = " ( contact_a_email.email $op $value )";
+
+      $this->_tables['contact_a_email'] = $this->_whereTables['contact_a_email'] = 1;
+    }
+    elseif ($name == 'contact_b_email') {
+      $this->_where[$grouping][] = " ( contact_b_email.email $op $value )";
+
+      $this->_tables['contact_b_email'] = $this->_whereTables['contact_b_email'] = 1;
+    }
+  }
+
+  /**
+   * Where / qill clause for contact sort_name
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function contactDisplayName(&$values) {
+
+    list($fieldName, $op, $value, $grouping, $wildcard) = $values;
+
+    $value = trim($value);
+    if (substr($value, 0, 1) == '"' &&
+        substr($value, -1, 1) == '"'
+    ) {
+      $op = '=';
+      $value = substr($value, 1, -1);
+    }
+    else {
+      $op = 'LIKE';
+    }
+
+    $value = '"' . strtolower(CRM_Core_DAO::escapeString(trim($value))) . '%"';
+
+    if ($fieldName == 'contact_a_display_name') {
+      $wc = "contact_a.display_name";
+    }
+    elseif ($fieldName == 'contact_b_display_name') {
+      $wc = "contact_b.display_name";
+    }
+
+    $this->_where[$grouping][] = " ( $wc $op $value )";
+    $this->_qill[$grouping][] = ts('Name') . " $op - '$value'";
   }
 
   /**
@@ -602,14 +682,15 @@ relationship.start_date > {$today}
     if (substr($target_name, 0, 1) == '"' &&
         substr($target_name, -1, 1) == '"'
     ) {
+      $op = '=';
       $target_name = substr($target_name, 1, -1);
-      $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
-      $this->_where[$grouping][] = "(contact_a.display_name = '$target_name' or contact_b.display_name = '$target_name')";
-    }
+         }
     else {
-      $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
-      $this->_where[$grouping][] = "(contact_a.display_name LIKE '{$target_name}%' or contact_b.display_name LIKE '{$target_name}%')";
+      $op = 'LIKE';
     }
+    $target_name = strtolower(CRM_Core_DAO::escapeString($target_name));
+    $this->_where[$grouping][] = "(contact_a.display_name ' $op $target_name' or contact_b.display_name ' $op $target_name')";
+
     $this->_qill[$grouping][] = ts('Contact name is ') . $value;
   }
 
@@ -1184,6 +1265,14 @@ relationship.start_date > {$today}
 
         case 'contact_b':
           $from .= " $side JOIN civicrm_contact contact_b ON relationship.contact_id_b = contact_b.id ";
+          continue;
+
+        case 'contact_a_email':
+          $from .= " $side JOIN civicrm_email contact_a_email ON (contact_a.id = contact_a_email.contact_id AND contact_a_email.is_primary = 1) ";
+          continue;
+
+        case 'contact_b_email':
+          $from .= " $side JOIN civicrm_email contact_b_email ON (contact_b.id = contact_b_email.contact_id AND contact_b_email.is_primary = 1) ";
           continue;
 
         default;
