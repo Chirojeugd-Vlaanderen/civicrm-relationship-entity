@@ -527,11 +527,16 @@ class CRM_Relationship_BAO_Query {
         $this->email($values);
         return;
 
+      case 'contact_a_contact_type':
+      case 'contact_b_contact_type':
+        $this->contactType($values);
+        return;
+
       case 'entryURL':
         return;
 
       default:
-        dsm("TODO / IGNORE: where clause voor $name");
+        //dsm("TODO / IGNORE: where clause voor $name");
         return;
     }
   }
@@ -570,6 +575,106 @@ class CRM_Relationship_BAO_Query {
 
       $this->_tables['contact_b_email'] = $this->_whereTables['contact_b_email'] = 1;
     }
+  }
+
+  /**
+   * Where / qill clause for contact_type
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function contactType(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $subTypes = array();
+    $clause = array();
+
+    // account for search builder mapping multiple values
+    if (!is_array($value)) {
+      $values = self::parseSearchBuilderString($value, 'String');
+      if (is_array($values)) {
+        $value = array_flip($values);
+      }
+    }
+
+    if (is_array($value)) {
+      foreach ($value as $k => $v) {
+        $subType = NULL;
+        $contactType = $v;
+        if (strpos($v, CRM_Core_DAO::VALUE_SEPARATOR)) {
+          list($contactType, $subType) = explode(CRM_Core_DAO::VALUE_SEPARATOR, $v, 2);
+        }
+        if (!empty($subType)) {
+          $subTypes[$subType] = 1;
+        }
+        $clause[$contactType] = "'" . CRM_Utils_Type::escape($contactType, 'String') . "'";
+      }
+    }
+    else {
+      $contactTypeANDSubType = explode(CRM_Core_DAO::VALUE_SEPARATOR, $value, 2);
+      $contactType = $contactTypeANDSubType[0];
+      $subType = CRM_Utils_Array::value(1, $contactTypeANDSubType);
+      if (!empty($subType)) {
+        $subTypes[$subType] = 1;
+      }
+      $clause[$contactType] = "'" . CRM_Utils_Type::escape($contactType, 'String') . "'";
+    }
+
+    // fix for CRM-771
+    if (!empty($clause)) {
+      $quill = $clause;
+
+      if ($name == 'contact_a_contact_type') {
+        $this->_where[$grouping][] = "contact_a.contact_type IN (" . implode(',', $clause) . ')';
+        $this->includeContactSubTypes($subTypes, $grouping, 'LIKE', 'contact_a');
+      }
+      elseif ($name == 'contact_b_contact_type') {
+        $this->_where[$grouping][] = "contact_b.contact_type IN (" . implode(',', $clause) . ')';
+        if (!empty($subTypes)) {
+          $this->includeContactSubTypes($subTypes, $grouping, 'LIKE', 'contact_b');
+        }
+      }
+
+      $this->_qill[$grouping][] = ts('Contact Type') . " IN " . implode(' ' . ts('or') . ' ', $quill);
+
+      
+    }
+  }
+
+  /**
+   * @param $value
+   * @param $grouping
+   * @param string $op
+   */
+  public function includeContactSubTypes($value, $grouping, $op = 'LIKE', $contact) {
+
+    $clause = array();
+    $alias = "$contact.contact_sub_type";
+    $qillOperators = array('NOT LIKE' => ts('Not Like')) + CRM_Core_SelectValues::getSearchBuilderOperators();
+
+    $op = str_replace('IN', 'LIKE', $op);
+    $op = str_replace('=', 'LIKE', $op);
+    $op = str_replace('!', 'NOT ', $op);
+
+    if (strpos($op, 'NULL') !== FALSE || strpos($op, 'EMPTY') !== FALSE) {
+      $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause($alias, $op, $value, 'String');
+    }
+    elseif (is_array($value)) {
+      foreach ($value as $k => $v) {
+        if (!empty($k)) {
+          $clause[$k] = "($alias $op '%" . CRM_Core_DAO::VALUE_SEPARATOR . CRM_Utils_Type::escape($k, 'String') . CRM_Core_DAO::VALUE_SEPARATOR . "%')";
+        }
+      }
+    }
+    else {
+      $clause[$value] = "($alias $op '%" . CRM_Core_DAO::VALUE_SEPARATOR . CRM_Utils_Type::escape($value, 'String') . CRM_Core_DAO::VALUE_SEPARATOR . "%')";
+    }
+
+    if (!empty($clause)) {
+      $this->_where[$grouping][] = "( " . implode(' OR ', $clause) . " )";
+    }
+    $this->_qill[$grouping][] = ts('Contact Subtype %1 ', array(1 => $qillOperators[$op])) . implode(' ' . ts('or') . ' ', array_keys($clause));
   }
 
   /**
