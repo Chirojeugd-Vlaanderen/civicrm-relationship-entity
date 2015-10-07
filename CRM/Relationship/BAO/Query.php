@@ -532,12 +532,236 @@ class CRM_Relationship_BAO_Query {
         $this->contactType($values);
         return;
 
+      case 'contact_a_phone_numeric':
+      case 'contact_b_phone_numeric':
+        $this->phone_numeric($values);
+        return;
+
+      case 'contact_a_phone_phone_type_id':
+      case 'contact_a_phone_location_type_id':
+        $this->phone_option_group($values, 'contact_a');
+        return;
+
+      case 'contact_b_phone_phone_type_id':
+      case 'contact_b_phone_location_type_id':
+        $this->phone_option_group($values, 'contact_b');
+        return;
+
+      case 'contact_a_street_address':
+        $this->street_address($values, 'contact_a');
+        return;
+
+      case 'contact_b_street_address':
+        $this->street_address($values, 'contact_b');
+        return;
+
+      case 'contact_a_city':
+        $this->city($values, 'contact_a');
+        return;
+
+      case 'contact_b_city':
+        $this->city($values, 'contact_b');
+        return;
+
+      case 'contact_a_location_type':
+        $this->locationType($values, 'contact_a');
+        return;
+
+      case 'contact_b_location_type':
+        $this->locationType($values, 'contact_b');
+        return;
+
+      case 'contact_a_postal_code':
+      case 'contact_a_postal_code_low':
+      case 'contact_a_postal_code_high':
+        $this->postalCode($values, 'contact_a');
+        return;
+
+      case 'contact_b_postal_code':
+      case 'contact_b_postal_code_low':
+      case 'contact_b_postal_code_high':
+        $this->postalCode($values, 'contact_b');
+        return;
+
       case 'entryURL':
         return;
 
       default:
         //dsm("TODO / IGNORE: where clause voor $name");
         return;
+    }
+  }
+
+  /**
+   * Where / qill clause for postal code
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function postalCode(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    // Handle numeric postal code range searches properly by casting the column as numeric
+    if (is_numeric($value)) {
+      $field = 'ROUND(' . $contact . '_address.postal_code)';
+      $val = CRM_Utils_Type::escape($value, 'Integer');
+    }
+    else {
+      $field = $contact . '_address.postal_code';
+      // Per CRM-17060 we might be looking at an 'IN' syntax so don't case arrays to string.
+      if (!is_array($value)) {
+        $val = CRM_Utils_Type::escape($value, 'String');
+      }
+      else {
+        // Do we need to escape values here? I would expect buildClause does.
+        $val = $value;
+      }
+    }
+
+    $this->_tables[$contact . '_address'] = $this->_whereTables[$contact . '_address'] = 1;
+
+    if ($name == $contact . '_postal_code') {
+      $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause($field, $op, $val, 'String');
+      $this->_qill[$grouping][] = ts('Postal code') . " {$op} {$value}";
+    }
+    elseif ($name == $contact . '_postal_code_low') {
+      $this->_where[$grouping][] = " ( $field >= '$val' ) ";
+      $this->_qill[$grouping][] = ts('Postal code greater than or equal to \'%1\'', array(1 => $value));
+    }
+    elseif ($name == $contact . '_postal_code_high') {
+      $this->_where[$grouping][] = " ( $field <= '$val' ) ";
+      $this->_qill[$grouping][] = ts('Postal code less than or equal to \'%1\'', array(1 => $value));
+    }
+  }
+
+  /**
+   * Where / qill clause for location type
+   *
+   * @param $values
+   * @param null $status
+   *
+   * @return void
+   */
+  public function locationType(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    if (is_array($value)) {
+      $this->_where[$grouping][] = $contact . '_address.location_type_id IN (' . implode(',', $value) . ')';
+      $this->_tables[$contact . '_address'] = 1;
+      $this->_whereTables[$contact . '_address'] = 1;
+
+      $locationType = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Address', 'location_type_id');
+      $names = array();
+      foreach ($value as $id) {
+        $names[] = $locationType[$id];
+      }
+
+      $this->_qill[$grouping][] = ts('Location Type') . ' - ' . implode(' ' . ts('or') . ' ', $names);
+    }
+  }
+
+  /**
+   * Where / qill clause for street_address
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function city(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $value = trim($value);
+    if (substr($value, 0, 1) == '"' &&
+        substr($value, -1, 1) == '"'
+    ) {
+      $op = '=';
+      $value = substr($value, 1, -1);
+    }
+    else {
+      $op = 'LIKE';
+    }
+
+    $value = '"' . strtolower(CRM_Core_DAO::escapeString(trim($value))) . '%"';
+
+    $this->_where[$grouping][] = 'LOWER(' . $contact . '_address.city) ' . $op . ' ' . $value;
+    $this->_qill[$grouping][] = ts('City') . " $op $value";
+
+    $this->_tables[$contact . '_address'] = $this->_whereTables[$contact . '_address'] = 1;
+  }
+
+  /**
+   * Where / qill clause for street_address
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function street_address(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    $value = trim($value);
+    if (substr($value, 0, 1) == '"' &&
+        substr($value, -1, 1) == '"'
+    ) {
+      $op = '=';
+      $value = substr($value, 1, -1);
+    }
+    else {
+      $op = 'LIKE';
+    }
+
+    $value = '"' . strtolower(CRM_Core_DAO::escapeString(trim($value))) . '%"';
+
+    $this->_where[$grouping][] = 'LOWER(' . $contact . '_address.street_address) ' . $op . ' ' . $value;
+    $this->_qill[$grouping][] = ts('Street') . " $op $value";
+
+    $this->_tables[$contact . '_address'] = $this->_whereTables[$contact . '_address'] = 1;
+  }
+
+  /**
+   * Where / qill clause for phone type/location
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function phone_option_group($values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $option = ($name == $contact . '_phone_phone_type_id' ? 'phone_type_id' : 'location_type_id');
+    $options = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Phone', $option);
+    $optionName = $options[$value];
+    $this->_qill[$grouping][] = ts('Phone') . ' ' . ($name == $contact . 'phone_phone_type_id' ? ts('type') : ('location')) . " $op $optionName";
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause($contact . '_phone.' . $option, $op, $value, 'Integer');
+    $this->_tables[$contact . '_phone'] = $this->_whereTables[$contact . '_phone'] = 1;
+  }
+
+  /**
+   * Where / qill clause for phone number
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function phone_numeric(&$values) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    // Strip non-numeric characters; allow wildcards
+    $number = preg_replace('/[^\d%]/', '', $value);
+    if ($number) {
+      if (strpos($number, '%') === FALSE) {
+        $number = "%$number%";
+      }
+
+      $this->_qill[$grouping][] = ts('Phone number contains') . " $number";
+
+      if ($name == 'contact_a_phone_numeric') {
+        $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause('contact_a_phone.phone_numeric', 'LIKE', "$number", 'String');
+        $this->_tables['contact_a_phone'] = $this->_whereTables['contact_a_phone'] = 1;
+      }
+      elseif ($name == 'contact_b_phone_numeric') {
+        $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause('contact_b_phone.phone_numeric', 'LIKE', "$number", 'String');
+        $this->_tables['contact_b_phone'] = $this->_whereTables['contact_b_phone'] = 1;
+      }
     }
   }
 
@@ -1087,6 +1311,7 @@ relationship.start_date > {$today}
     else {
       $query = "$select $from $where $having $groupBy $order $limit";
     }
+    //dsm($query);
     if ($returnQuery) {
       return $query;
     }
@@ -1378,6 +1603,22 @@ relationship.start_date > {$today}
 
         case 'contact_b_email':
           $from .= " $side JOIN civicrm_email contact_b_email ON (contact_b.id = contact_b_email.contact_id AND contact_b_email.is_primary = 1) ";
+          continue;
+
+        case 'contact_a_phone':
+          $from .= " $side JOIN civicrm_phone contact_a_phone ON (contact_a.id = contact_a_phone.contact_id AND contact_a_phone.is_primary = 1) ";
+          continue;
+
+        case 'contact_b_phone':
+          $from .= " $side JOIN civicrm_phone contact_b_phone ON (contact_b.id = contact_b_phone.contact_id AND contact_b_phone.is_primary = 1) ";
+          continue;
+
+        case 'contact_a_address':
+          $from .= " $side JOIN civicrm_address contact_a_address ON (contact_a.id = contact_a_address.contact_id AND contact_a_address.is_primary = 1) ";
+          continue;
+
+        case 'contact_b_address':
+          $from .= " $side JOIN civicrm_address contact_b_address ON (contact_b.id = contact_b_address.contact_id AND contact_b_address.is_primary = 1) ";
           continue;
 
         default;
