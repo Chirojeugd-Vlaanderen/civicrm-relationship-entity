@@ -164,20 +164,6 @@ class CRM_Relationship_Form_Search_Criteria {
       'placeholder' => ts('Primary'),
     ));
 
-    // custom data extending addresses -
-    $extends = array('Address');
-    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends);
-    if ($groupDetails) {
-      $form->assign('addressGroupTree', $groupDetails);
-      foreach ($groupDetails as $group) {
-        foreach ($group['fields'] as $field) {
-          $elementName = 'custom_' . $field['id'];
-          CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $field['id'], FALSE, FALSE, TRUE
-          );
-        }
-      }
-    }
-
     // Add demographics
     // radio button for gender
     $genderOptions = array();
@@ -268,20 +254,6 @@ class CRM_Relationship_Form_Search_Criteria {
       'class' => 'crm-select2',
       'placeholder' => ts('Primary'),
     ));
-
-    // custom data extending addresses -
-    $extends = array('Address');
-    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends);
-    if ($groupDetails) {
-      $form->assign('addressGroupTree', $groupDetails);
-      foreach ($groupDetails as $group) {
-        foreach ($group['fields'] as $field) {
-          $elementName = 'custom_' . $field['id'];
-          CRM_Core_BAO_CustomField::addQuickFormElement($form, $elementName, $field['id'], FALSE, FALSE, TRUE
-          );
-        }
-      }
-    }
 
     // Add demographics
     // radio button for gender

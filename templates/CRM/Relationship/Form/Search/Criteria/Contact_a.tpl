@@ -111,14 +111,6 @@
     </td>
   </tr>
 
-  {if $addressGroupTree}
-    <tr>
-      <td colspan="2">
-        {include file="CRM/Custom/Form/Search.tpl" groupTree=$addressGroupTree showHideLinks=false}
-      </td>
-    </tr>
-  {/if}
-
   <tr>
   <tr>
     <td>
