@@ -517,6 +517,10 @@ class CRM_Relationship_BAO_Query {
         $this->targetName($values);
         return;
 
+      case 'entryURL':
+        $this->targetName($values);
+        return;
+
       default:
         //dsm("TODO / IGNORE: where clause voor $name");
         return;
