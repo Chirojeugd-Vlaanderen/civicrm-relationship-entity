@@ -597,12 +597,44 @@ class CRM_Relationship_BAO_Query {
         $this->demographics($values, 'contact_b');
         return;
 
+      case 'contact_a_contact_id':
+        $this->contact_id($values, 'contact_a');
+        return;
+
+      case 'contact_b_contact_id':
+        $this->contact_id($values, 'contact_b');
+        return;
+
+      case 'contact_a_external_identifier':
+        $this->contact_external_id($values, 'contact_a');
+        return;
+
+      case 'contact_b_externla_identifier':
+        $this->contact_external_id($values, 'contact_b');
+        return;
+
       case 'contact_a_is_deceased':
         $this->deceased($values, 'contact_a');
         return;
 
       case 'contact_b_is_deceased':
         $this->deceased($values, 'contact_b');
+        return;
+
+      case 'contact_a_gender_id':
+        $this->gender($values, 'contact_a');
+        return;
+
+      case 'contact_b_gender_id':
+        $this->gender($values, 'contact_b');
+        return;
+
+      case 'contact_a_job_title':
+        $this->job($values, 'contact_a');
+        return;
+
+      case 'contact_b_job_title':
+        $this->job($values, 'contact_b');
         return;
 
       case 'entryURL':
@@ -617,9 +649,36 @@ class CRM_Relationship_BAO_Query {
   /**
    * @param $values
    */
+  public function gender(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("{$contact}.gender_id", $op, $value);
+    $this->_qill[$grouping][] = "$name $op \"$value\"";
+  }
+
+  /**
+   * @param $values
+   */
   public function deceased(&$values, $contact) {
     list($name, $op, $value, $grouping, $wildcard) = $values;
     $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("{$contact}.is_deceased", $op, $value);
+    $this->_qill[$grouping][] = "$name $op \"$value\"";
+  }
+
+  /**
+   * @param $values
+   */
+  public function contact_id(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("{$contact}.id", $op, $value);
+    $this->_qill[$grouping][] = "$name $op \"$value\"";
+  }
+
+  /**
+   * @param $values
+   */
+  public function contact_external_id(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("{$contact}.external_identifier", $op, $value);
     $this->_qill[$grouping][] = "$name $op \"$value\"";
   }
 
@@ -1092,6 +1151,34 @@ class CRM_Relationship_BAO_Query {
       $this->_where[$grouping][] = "( " . implode(' OR ', $clause) . " )";
     }
     $this->_qill[$grouping][] = ts('Contact Subtype %1 ', array(1 => $qillOperators[$op])) . implode(' ' . ts('or') . ' ', array_keys($clause));
+  }
+
+  /**
+   * Where / qill clause for contact sort_name
+   *
+   * @param $values
+   *
+   * @return void
+   */
+  public function job(&$values, $contact) {
+
+    list($fieldName, $op, $value, $grouping, $wildcard) = $values;
+
+    $value = trim($value);
+    if (substr($value, 0, 1) == '"' &&
+        substr($value, -1, 1) == '"'
+    ) {
+      $op = '=';
+      $value = substr($value, 1, -1);
+    }
+    else {
+      $op = 'LIKE';
+    }
+
+    $value = strtolower(CRM_Core_DAO::escapeString(trim($value))) . '%';
+
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause($contact . '.job_title', $op, "$value", 'String');
+    $this->_qill[$grouping][] = ts('Job title is ') . $value;
   }
 
   /**
