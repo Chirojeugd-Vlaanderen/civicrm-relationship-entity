@@ -583,12 +583,205 @@ class CRM_Relationship_BAO_Query {
         $this->postalCode($values, 'contact_b');
         return;
 
+      case 'contact_a_birth_date_low':
+      case 'contact_a_birth_date_high':
+      case 'contact_a_deceased_date_low':
+      case 'contact_a_deceased_date_high':
+        $this->demographics($values, 'contact_a');
+        return;
+
+      case 'contact_b_birth_date_low':
+      case 'contact_b_birth_date_high':
+      case 'contact_b_deceased_date_low':
+      case 'contact_b_deceased_date_high':
+        $this->demographics($values, 'contact_b');
+        return;
+
+      case 'contact_a_is_deceased':
+        $this->deceased($values, 'contact_a');
+        return;
+
+      case 'contact_b_is_deceased':
+        $this->deceased($values, 'contact_b');
+        return;
+
       case 'entryURL':
         return;
 
       default:
         //dsm("TODO / IGNORE: where clause voor $name");
         return;
+    }
+  }
+
+  /**
+   * @param $values
+   */
+  public function deceased(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("{$contact}.is_deceased", $op, $value);
+    $this->_qill[$grouping][] = "$name $op \"$value\"";
+  }
+
+  /**
+   * @param $values
+   */
+  public function demographics(&$values, $contact) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    if (($name == $contact . '_birth_date_low') || ($name == $contact . '_birth_date_high')) {
+
+      $this->dateQueryBuilder($values, $contact, $contact . '_birth_date', 'birth_date', ts('Birth Date')
+      );
+    }
+    elseif (($name == $contact . '_deceased_date_low') || ($name == $contact . '_deceased_date_high')) {
+
+      $this->dateQueryBuilder($values, $contact, $contact . '_deceased_date', 'deceased_date', ts('Deceased Date')
+      );
+    }
+  }
+
+  /**
+   * @param string $name
+   * @param $grouping
+   *
+   * @return null
+   */
+  public function &getWhereValues($name, $grouping) {
+    $result = NULL;
+    foreach ($this->_params as $values) {
+      if ($values[0] == $name && $values[3] == $grouping) {
+        return $values;
+      }
+    }
+
+    return $result;
+  }
+
+  /**
+   * @param $values
+   * @param string $tableName
+   * @param string $fieldName
+   * @param string $dbFieldName
+   * @param $fieldTitle
+   * @param bool $appendTimeStamp
+   */
+  public function dateQueryBuilder(
+  &$values, $tableName, $fieldName, $dbFieldName, $fieldTitle, $appendTimeStamp = TRUE
+  ) {
+    list($name, $op, $value, $grouping, $wildcard) = $values;
+
+    if ($name == "{$fieldName}_low" ||
+        $name == "{$fieldName}_high"
+    ) {
+      if (isset($this->_rangeCache[$fieldName]) || !$value) {
+        return;
+      }
+      $this->_rangeCache[$fieldName] = 1;
+
+      $secondOP = $secondPhrase = $secondValue = $secondDate = $secondDateFormat = NULL;
+
+      if ($name == $fieldName . '_low') {
+        $firstOP = '>=';
+        $firstPhrase = ts('greater than or equal to');
+        $firstDate = CRM_Utils_Date::processDate($value);
+
+        $secondValues = $this->getWhereValues("{$fieldName}_high", $grouping);
+        if (!empty($secondValues) && $secondValues[2]) {
+          $secondOP = '<=';
+          $secondPhrase = ts('less than or equal to');
+          $secondValue = $secondValues[2];
+
+          if ($appendTimeStamp && strlen($secondValue) == 10) {
+            $secondValue .= ' 23:59:59';
+          }
+          $secondDate = CRM_Utils_Date::processDate($secondValue);
+        }
+      }
+      elseif ($name == $fieldName . '_high') {
+        $firstOP = '<=';
+        $firstPhrase = ts('less than or equal to');
+
+        if ($appendTimeStamp && strlen($value) == 10) {
+          $value .= ' 23:59:59';
+        }
+        $firstDate = CRM_Utils_Date::processDate($value);
+
+        $secondValues = $this->getWhereValues("{$fieldName}_low", $grouping);
+        if (!empty($secondValues) && $secondValues[2]) {
+          $secondOP = '>=';
+          $secondPhrase = ts('greater than or equal to');
+          $secondValue = $secondValues[2];
+          $secondDate = CRM_Utils_Date::processDate($secondValue);
+        }
+      }
+
+      if (!$appendTimeStamp) {
+        $firstDate = substr($firstDate, 0, 8);
+      }
+      $firstDateFormat = CRM_Utils_Date::customFormat($firstDate);
+
+      if ($secondDate) {
+        if (!$appendTimeStamp) {
+          $secondDate = substr($secondDate, 0, 8);
+        }
+        $secondDateFormat = CRM_Utils_Date::customFormat($secondDate);
+      }
+
+      $this->_tables[$tableName] = $this->_whereTables[$tableName] = 1;
+      if ($secondDate) {
+        $this->_where[$grouping][] = "
+( {$tableName}.{$dbFieldName} $firstOP '$firstDate' ) AND
+( {$tableName}.{$dbFieldName} $secondOP '$secondDate' )
+";
+        $this->_qill[$grouping][] = "$fieldTitle - $firstPhrase \"$firstDateFormat\" " . ts('AND') . " $secondPhrase \"$secondDateFormat\"";
+      }
+      else {
+        $this->_where[$grouping][] = "{$tableName}.{$dbFieldName} $firstOP '$firstDate'";
+        $this->_qill[$grouping][] = "$fieldTitle - $firstPhrase \"$firstDateFormat\"";
+      }
+    }
+
+    if ($name == $fieldName) {
+      //In Get API, for operators other then '=' the $value is in array(op => value) format
+      if (is_array($value) && !empty($value) && in_array(key($value), CRM_Core_DAO::acceptedSQLOperators(), TRUE)) {
+        $op = key($value);
+        $value = $value[$op];
+      }
+
+      $date = $format = NULL;
+      if (strstr($op, 'IN')) {
+        $format = array();
+        foreach ($value as &$date) {
+          $date = CRM_Utils_Date::processDate($date);
+          if (!$appendTimeStamp) {
+            $date = substr($date, 0, 8);
+          }
+          $format[] = CRM_Utils_Date::customFormat($date);
+        }
+        $date = "('" . implode("','", $value) . "')";
+        $format = implode(', ', $format);
+      }
+      elseif ($value && (!strstr($op, 'NULL') && !strstr($op, 'EMPTY'))) {
+        $date = CRM_Utils_Date::processDate($value);
+        if (!$appendTimeStamp) {
+          $date = substr($date, 0, 8);
+        }
+        $format = CRM_Utils_Date::customFormat($date);
+        $date = "'$date'";
+      }
+
+      if ($date) {
+        $this->_where[$grouping][] = "{$tableName}.{$dbFieldName} $op $date";
+      }
+      else {
+        $this->_where[$grouping][] = "{$tableName}.{$dbFieldName} $op";
+      }
+
+      $this->_tables[$tableName] = $this->_whereTables[$tableName] = 1;
+
+      $op = CRM_Utils_Array::value($op, CRM_Core_SelectValues::getSearchBuilderOperators(), $op);
+      $this->_qill[$grouping][] = "$fieldTitle $op $format";
     }
   }
 
